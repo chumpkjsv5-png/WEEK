@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
 from enum import Enum
@@ -12,6 +12,7 @@ class TaskStatus(str, Enum):
 
 
 class TaskBase(BaseModel):
+    project_id: int
     title: str = Field(..., max_length=200)
     description: Optional[str] = None
     status: Optional[TaskStatus] = TaskStatus.pending
@@ -24,6 +25,7 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
+    project_id: Optional[int] = None          # ← thêm: cho phép chuyển task sang project khác
     title: Optional[str] = Field(None, max_length=200)
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
@@ -38,3 +40,9 @@ class TaskOut(TaskBase):
 
     class Config:
         from_attributes = True
+
+class TaskListOut(BaseModel):
+    items: List[TaskOut]
+    total: int
+    skip: int
+    limit: int

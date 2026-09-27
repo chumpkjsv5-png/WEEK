@@ -1,12 +1,26 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+
 from typing import Optional, List
 from uuid import UUID
+from datetime import date
 
 from app.models.task_data import Task
+from app.models.project_data import Project
+from app.models.user_data import User
 from app.schemas.task_schema import TaskCreate, TaskUpdate, TaskStatus
 
 
 def create_task(db: Session, task_data: TaskCreate) -> Task:
+    project = db.query(Project).filter(Project.id == task_data.project_id).first()
+    if not project:
+        raise ValueError("project_id không tồn tại")
+
+    if task_data.assignee_id is not None:
+        assignee = db.query(User).filter(User.id == task_data.assignee_id).first()
+        if not assignee:
+            raise ValueError("assignee_id không tồn tại")
+
     new_task = Task(**task_data.model_dump())
     db.add(new_task)
     db.commit()
@@ -15,18 +29,23 @@ def create_task(db: Session, task_data: TaskCreate) -> Task:
 
 
 def get_task(db: Session, task_id: int) -> Optional[Task]:
-    return db.query(Task).filter(Task.id == task_id).first()
-
+    return db.get(Task, task_id)
 
 def get_tasks(
     db: Session,
+    project_id: Optional[int] = None,        # Story 1: group by project
     search: Optional[str] = None,
     status: Optional[TaskStatus] = None,
     assignee_id: Optional[UUID] = None,
+    due_before: Optional[date] = None,         # Story 2: filter theo date
+    due_after: Optional[date] = None,
     skip: int = 0,
     limit: int = 100,
-) -> List[Task]:
-    query = db.query(Task)
+) -> dict:
+    query = select(Task)
+
+    if project_id is not None:
+        query = query.filter(Task.project_id == project_id)
 
     if search:
         query = query.filter(Task.title.ilike(f"%{search}%"))
@@ -37,7 +56,16 @@ def get_tasks(
     if assignee_id:
         query = query.filter(Task.assignee_id == assignee_id)
 
-    return query.offset(skip).limit(limit).all()
+    if due_before:
+        query = query.filter(Task.due_date <= due_before)
+
+    if due_after:
+        query = query.filter(Task.due_date >= due_after)
+
+    total = query.count()  # tổng số dòng khớp filter, để FE vẽ pagination
+    items = query.offset(skip).limit(limit).all()
+
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 def update_task(db: Session, task_id: int, task_update: TaskUpdate) -> Optional[Task]:
@@ -46,6 +74,17 @@ def update_task(db: Session, task_id: int, task_update: TaskUpdate) -> Optional[
         return None
 
     update_data = task_update.model_dump(exclude_unset=True)
+
+    if "project_id" in update_data and update_data["project_id"] is not None:
+        project = db.query(Project).filter(Project.id == update_data["project_id"]).first()
+        if not project:
+            raise ValueError("project_id không tồn tại")
+
+    if "assignee_id" in update_data and update_data["assignee_id"] is not None:
+        assignee = db.query(User).filter(User.id == update_data["assignee_id"]).first()
+        if not assignee:
+            raise ValueError("assignee_id không tồn tại")
+
     for field, value in update_data.items():
         setattr(task, field, value)
 
