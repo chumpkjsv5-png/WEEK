@@ -33,11 +33,11 @@ def get_task(db: Session, task_id: int) -> Optional[Task]:
 
 def get_tasks(
     db: Session,
-    project_id: Optional[int] = None,        # Story 1: group by project
+    project_id: Optional[int] = None,
     search: Optional[str] = None,
     status: Optional[TaskStatus] = None,
     assignee_id: Optional[UUID] = None,
-    due_before: Optional[date] = None,         # Story 2: filter theo date
+    due_before: Optional[date] = None,
     due_after: Optional[date] = None,
     skip: int = 0,
     limit: int = 100,
@@ -45,25 +45,24 @@ def get_tasks(
     query = select(Task)
 
     if project_id is not None:
-        query = query.filter(Task.project_id == project_id)
-
+        query = query.where(Task.project_id == project_id)
     if search:
-        query = query.filter(Task.title.ilike(f"%{search}%"))
-
+        query = query.where(Task.title.ilike(f"%{search}%"))
     if status:
-        query = query.filter(Task.status == status)
-
+        query = query.where(Task.status == status)
     if assignee_id:
-        query = query.filter(Task.assignee_id == assignee_id)
-
+        query = query.where(Task.assignee_id == assignee_id)
     if due_before:
-        query = query.filter(Task.due_date <= due_before)
-
+        query = query.where(Task.due_date <= due_before)
     if due_after:
-        query = query.filter(Task.due_date >= due_after)
+        query = query.where(Task.due_date >= due_after)
 
-    total = query.count()  # tổng số dòng khớp filter, để FE vẽ pagination
-    items = query.offset(skip).limit(limit).all()
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0   # ← sửa ở đây
+
+    query = query.order_by(Task.due_date.asc().nulls_last(), Task.id.asc())
+    query = query.offset(skip).limit(limit)
+
+    items = db.scalars(query).all()
 
     return {"items": items, "total": total, "skip": skip, "limit": limit}
 

@@ -1,6 +1,25 @@
 /* =========================
    RESET
 ========================= */
+.H1_home{
+  color: BLACK;
+}
+
+.task-filters {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.filter-field label {
+  font-size: 12px;
+  color: #888;
+}
 
 * {
   box-sizing: border-box;

@@ -4,9 +4,11 @@ import {
   TASK_STATUS,
   TASK_STATUS_OPTIONS,
 } from "../constants/taskStatus";
+import { getProjects } from "../api/projectApi";
 
 export default function TaskForm({
   editingTask,
+  defaultProjectId,   // truyền từ component cha nếu đang ở màn "task của 1 project cụ thể"
   onSubmit,
   onCancel,
   submitting,
@@ -15,7 +17,16 @@ export default function TaskForm({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(TASK_STATUS.PENDING);
   const [dueDate, setDueDate] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [projects, setProjects] = useState([]);
   const [error, setError] = useState("");
+
+  // Load danh sách project cho dropdown
+  useEffect(() => {
+    getProjects()
+      .then(setProjects)
+      .catch(() => setProjects([]));
+  }, []);
 
   useEffect(() => {
     if (editingTask) {
@@ -25,15 +36,17 @@ export default function TaskForm({
         editingTask.status || TASK_STATUS.PENDING
       );
       setDueDate(editingTask.due_date || "");
+      setProjectId(editingTask.project_id || "");
     } else {
       setTitle("");
       setDescription("");
       setStatus(TASK_STATUS.PENDING);
       setDueDate("");
+      setProjectId(defaultProjectId || "");
     }
 
     setError("");
-  }, [editingTask]);
+  }, [editingTask, defaultProjectId]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -43,9 +56,15 @@ export default function TaskForm({
       return;
     }
 
+    if (!projectId) {
+      setError("Vui lòng chọn Project");
+      return;
+    }
+
     setError("");
 
     onSubmit({
+      project_id: Number(projectId),
       title: title.trim(),
       description: description.trim() || null,
       status,
@@ -58,6 +77,26 @@ export default function TaskForm({
       className="task-form"
       onSubmit={handleSubmit}
     >
+
+      <div className="form-field">
+
+        <label>
+          Project <span>*</span>
+        </label>
+
+        <select
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+        >
+          <option value="">-- Chọn project --</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+
+      </div>
 
       <div className="form-field">
 
