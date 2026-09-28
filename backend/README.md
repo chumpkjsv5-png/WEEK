@@ -80,6 +80,8 @@ Thay các giá trị `<user>`, `<password>`, `<host>`, `<database>` bằng thôn
 
 ```bash
 uvicorn app.main:app --reload
+
+python -m uvicorn app.main:app --reload
 ```
 
 Nếu thành công, terminal hiện:
