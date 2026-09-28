@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 from datetime import date
 
@@ -57,7 +57,7 @@ def get_tasks(
     if due_after:
         query = query.where(Task.due_date >= due_after)
 
-    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0   # ← sửa ở đây
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0   
 
     query = query.order_by(Task.due_date.asc().nulls_last(), Task.id.asc())
     query = query.offset(skip).limit(limit)

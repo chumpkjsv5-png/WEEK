@@ -5,13 +5,13 @@ export const TASK_STATUS = {
 };
 
 export const TASK_STATUS_OPTIONS = [
-  { value: TASK_STATUS.PENDING, label: "Chưa làm" },
-  { value: TASK_STATUS.IN_PROGRESS, label: "Đang làm" },
-  { value: TASK_STATUS.COMPLETED, label: "Hoàn thành" },
+  { value: TASK_STATUS.PENDING, label: "Pending" },
+  { value: TASK_STATUS.IN_PROGRESS, label: "In Progress" },
+  { value: TASK_STATUS.COMPLETED, label: "Completed" },
 ];
 
 export const TASK_STATUS_LABEL = {
-  [TASK_STATUS.PENDING]: "Chưa làm",
-  [TASK_STATUS.IN_PROGRESS]: "Đang làm",
-  [TASK_STATUS.COMPLETED]: "Hoàn thành",
+  [TASK_STATUS.PENDING]: "Pending",
+  [TASK_STATUS.IN_PROGRESS]: "In Progress",
+  [TASK_STATUS.COMPLETED]: "Completed",
 };

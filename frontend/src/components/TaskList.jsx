@@ -40,7 +40,7 @@ export default function TaskList({
 
       <div className="task-table-header">
 
-        <div className="task-check"></div>
+        {/* <div className="task-check"></div> */}
 
         <div>Title</div>
 
@@ -59,7 +59,7 @@ export default function TaskList({
           key={task.id}
         >
 
-          <div className="task-check">
+          {/* <div className="task-check">
 
             <input
               type="checkbox"
@@ -73,7 +73,7 @@ export default function TaskList({
               }}
             />
 
-          </div>
+          </div> */}
 
           <div className="task-information">
 

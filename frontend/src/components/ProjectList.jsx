@@ -33,9 +33,9 @@ export default function ProjectList({
   return (
     <div className="project-table">
       <div className="project-table-header">
-        <div className="checkbox-col">
+        {/* <div className="checkbox-col">
           <input type="checkbox" />
-        </div>
+        </div> */}
         <div className="name-col">NAME</div>
         <div className="description-col">DESCRIPTION</div>
         <div className="date-col">CREATED AT</div>
@@ -44,13 +44,13 @@ export default function ProjectList({
 
       {projects.map((project) => (
         <div className="project-table-row" key={project.id}>
-          <div className="checkbox-col">
+          {/* <div className="checkbox-col">
             <input
               type="checkbox"
               checked={checkedProjects.has(project.id)}
               onChange={() => onCheckProject(project.id)}
             />
-          </div>
+          </div> */}
 
           <div className="name-col">
             <div className="project-name">{project.name}</div>

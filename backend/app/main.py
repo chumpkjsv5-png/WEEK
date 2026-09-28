@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
 
-# Import model để SQLAlchemy nhận biết bảng
-from app.models.task_data import Task
+# # Import model để SQLAlchemy nhận biết bảng
+# from app.models.task_data import Task
 
 # Import router
 from app.routers import task_router, project_router
