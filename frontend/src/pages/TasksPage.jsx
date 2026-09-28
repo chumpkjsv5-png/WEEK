@@ -4,9 +4,12 @@ import { useSearchParams } from "react-router-dom";
 import TaskHeader from "../components/TaskHeader";
 import TaskTabs from "../components/TaskTabs";
 import TaskSearch from "../components/TaskSearch";
-import TaskFilters from "../components/TaskFilters";   // ← thêm
+import TaskFilters from "../components/TaskFilters";
 import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
+import Pagination from "../components/Pagination";
+
+import "../css/Main.css";
 
 import { useTasks } from "../hooks/useTasks";
 
@@ -16,9 +19,11 @@ export default function TasksPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");       // ← thêm
-  const [dueBefore, setDueBefore] = useState("");           // ← thêm
-  const [dueAfter, setDueAfter] = useState("");             // ← thêm
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueBefore, setDueBefore] = useState("");
+  const [dueAfter, setDueAfter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const [editingTask, setEditingTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -38,15 +43,27 @@ export default function TasksPage() {
     search,
     statusFilter,
     projectId,
-    assigneeId,       // ← thêm
-    dueBefore,          // ← thêm
-    dueAfter,           // ← thêm
+    assigneeId,
+    dueBefore,
+    dueAfter,
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(tasks.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTasks = tasks.slice(startIndex, endIndex);
 
   function handleClearFilters() {
     setAssigneeId("");
     setDueBefore("");
     setDueAfter("");
+    setCurrentPage(1);
+  }
+
+  function handlePageChange(page) {
+    setCurrentPage(page);
+    window.scrollTo(0, 0);
   }
 
   async function handleSubmit(payload) {
@@ -60,6 +77,7 @@ export default function TasksPage() {
       }
       setEditingTask(null);
       setShowForm(false);
+      setCurrentPage(1);
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -109,17 +127,38 @@ export default function TasksPage() {
     <div className="page">
       <TaskHeader onNewTask={openCreateForm} projectId={projectId} />
 
-      <TaskTabs value={statusFilter} onChange={setStatusFilter} />
+      <TaskTabs 
+        value={statusFilter} 
+        onChange={(status) => {
+          setStatusFilter(status);
+          setCurrentPage(1);
+        }} 
+      />
 
-      <TaskSearch value={search} onChange={setSearch} />
+      <TaskSearch 
+        value={search} 
+        onChange={(q) => {
+          setSearch(q);
+          setCurrentPage(1);
+        }} 
+      />
 
       <TaskFilters
         assigneeId={assigneeId}
-        onAssigneeIdChange={setAssigneeId}
+        onAssigneeIdChange={(value) => {
+          setAssigneeId(value);
+          setCurrentPage(1);
+        }}
         dueBefore={dueBefore}
-        onDueBeforeChange={setDueBefore}
+        onDueBeforeChange={(value) => {
+          setDueBefore(value);
+          setCurrentPage(1);
+        }}
         dueAfter={dueAfter}
-        onDueAfterChange={setDueAfter}
+        onDueAfterChange={(value) => {
+          setDueAfter(value);
+          setCurrentPage(1);
+        }}
         onClear={handleClearFilters}
       />
 
@@ -127,12 +166,22 @@ export default function TasksPage() {
 
       <TaskList
         status={status}
-        tasks={tasks}
+        tasks={paginatedTasks}
         error={error}
         onEdit={openEditForm}
         onComplete={handleComplete}
         onDelete={handleDelete}
       />
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          totalItems={tasks.length}
+          itemsPerPage={itemsPerPage}
+        />
+      )}
 
       {showForm && (
         <>

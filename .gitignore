@@ -16,10 +16,11 @@ node_modules/
 # dist-ssr/
 
 # Python
-# __pycache__/
 # *.py[cod]
-# .venv/
-# venv/
+venv/
+.venv/
+__pycache__/
+*.pyc
 
 # Local files
 # *.local

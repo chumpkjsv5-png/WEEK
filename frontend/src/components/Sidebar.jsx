@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import "../css/Sidebar.css";
+
 const menuItems = [
   { id: "home", label: "Home", icon: "⌂" },
   { id: "tasks", label: "Tasks", icon: "☷" },
@@ -42,8 +44,8 @@ export default function Sidebar() {
       <div className="sidebar-user">
         <div className="user-avatar">A</div>
         <div className="user-info">
-          <strong>Andy</strong>
-          <span>andy@example.com</span>
+          <strong>ABC</strong>
+          <span>ABC@example.com</span>
         </div>
       </div>
 

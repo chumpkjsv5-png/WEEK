@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function ProjectForm({ onSubmit, onCancel, submitting }) {
+export default function ProjectForm({ editingProject, onSubmit, onCancel, submitting }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [ownerId, setOwnerId] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (editingProject) {
+      setName(editingProject.name || "");
+      setDescription(editingProject.description || "");
+      setOwnerId(editingProject.owner_id || "");
+    } else {
+      setName("");
+      setDescription("");
+      setOwnerId("");
+    }
+    setError("");
+  }, [editingProject]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -63,7 +76,7 @@ export default function ProjectForm({ onSubmit, onCancel, submitting }) {
           Cancel
         </button>
         <button type="submit" className="btn-primary" disabled={submitting}>
-          {submitting ? "Saving..." : "Create Project"}
+          {submitting ? "Saving..." : editingProject ? "Update Project" : "Create Project"}
         </button>
       </div>
 

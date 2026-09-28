@@ -5,13 +5,9 @@ export default function TaskFilters({
   onDueBeforeChange,
   dueAfter,
   onDueAfterChange,
-  onClear,
 }) {
-  const hasActiveFilter = assigneeId || dueBefore || dueAfter;
-
   return (
     <div className="task-filters">
-
       <div className="filter-field">
         <label>Assignee ID</label>
         <input
@@ -38,13 +34,6 @@ export default function TaskFilters({
           onChange={(e) => onDueBeforeChange(e.target.value)}
         />
       </div>
-
-      {hasActiveFilter && (
-        <button type="button" className="btn-secondary" onClick={onClear}>
-          Xoá filter
-        </button>
-      )}
-
     </div>
   );
 }
