@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { getTasks, createTask, updateTask, completeTask, deleteTask } from "../api/taskApi";
 
-export function useTasks({ search, statusFilter, projectId, assigneeId, dueBefore, dueAfter }) {
+export function useTasks({
+  search,
+  statusFilter,
+  priorityFilter,
+  projectId,
+  assigneeId,
+  dueBefore,
+  dueAfter,
+}) {
   const [tasks, setTasks] = useState([]);
   const [total, setTotal] = useState(0);          // tuỳ chọn: thêm để hiển thị "Tổng X task"
   const [status, setStatus] = useState("loading"); // loading | success | error
@@ -11,13 +19,14 @@ export function useTasks({ search, statusFilter, projectId, assigneeId, dueBefor
     setStatus("loading");
     setError("");
     try {
-      const data = await getTasks({ 
-        search, 
-        status: statusFilter || undefined, 
+      const data = await getTasks({
+        search,
+        status: statusFilter || undefined,
+        priority: priorityFilter || undefined,
         projectId: projectId || undefined,
-        assigneeId: assigneeId || undefined,   
-        dueBefore: dueBefore || undefined,       
-        dueAfter: dueAfter || undefined,  
+        assigneeId: assigneeId || undefined,
+        dueBefore: dueBefore || undefined,
+        dueAfter: dueAfter || undefined,
       });
       setTasks(data.items);
       setTotal(data.total);
@@ -26,11 +35,10 @@ export function useTasks({ search, statusFilter, projectId, assigneeId, dueBefor
       setError(err.message);
       setStatus("error");
     }
-  }, [search, statusFilter, projectId, assigneeId, dueBefore, dueAfter]);
+  }, [search, statusFilter, priorityFilter, projectId, assigneeId, dueBefore, dueAfter]);
 
   useEffect(() => {
-    const timer = setTimeout(loadTasks, 300); // debounce khi gõ search
-    return () => clearTimeout(timer);
+    loadTasks();
   }, [loadTasks]);
 
   async function addTask(payload) {

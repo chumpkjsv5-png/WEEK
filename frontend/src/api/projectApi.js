@@ -1,8 +1,8 @@
 import axiosClient from "./axiosClient";
 
-export async function getProjects() {
-  const res = await axiosClient.get("/projects");
-  return res.data;
+export async function getProjects(params = {}, signal) {
+  const res = await axiosClient.get("/projects", { params, signal });
+  return res.data; // { items, total }
 }
 
 export async function getProject(id) {

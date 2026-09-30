@@ -1,6 +1,8 @@
 import uuid
-from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import (
+    Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID, ENUM as PGEnum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -28,6 +30,19 @@ class Task(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="pending", server_default="pending")
+
+    # Enum đã được migration tạo sẵn trong DB -> create_type=False
+    priority = Column(
+        PGEnum(
+            "Low", "Medium", "High",
+            name="priority_enum",
+            create_type=False,
+        ),
+        nullable=False,
+        default="Medium",
+        server_default="Medium",
+    )
+
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 

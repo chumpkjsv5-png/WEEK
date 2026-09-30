@@ -1,17 +1,22 @@
-from datetime import date
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
-from uuid import UUID
 
 from app.database import get_db
-from app.schemas.task_schema import TaskCreate, TaskUpdate, TaskOut, TaskListOut, TaskStatus
+from app.schemas.task_schema import (
+    TaskCreate,
+    TaskUpdate,
+    TaskOut,
+    TaskListOut,
+    TaskFilterParams,
+)
 from app.services import task_service
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.post("/", response_model=TaskOut)
+@router.post("/", response_model=TaskOut, status_code=201)
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     try:
         return task_service.create_task(db, task)
@@ -21,27 +26,11 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
 
 @router.get("/", response_model=TaskListOut)
 def get_tasks(
-    project_id: Optional[int] = None,          # Story 1: group by project
-    search: Optional[str] = None,
-    status: Optional[TaskStatus] = None,
-    assignee_id: Optional[UUID] = None,
-    due_before: Optional[date] = None,           # Story 2: filter theo date
-    due_after: Optional[date] = None,
-    skip: int = 0,
-    limit: int = 100,
+    params: Annotated[TaskFilterParams, Query()],
     db: Session = Depends(get_db),
 ):
-    return task_service.get_tasks(
-        db,
-        project_id=project_id,
-        search=search,
-        status=status,
-        assignee_id=assignee_id,
-        due_before=due_before,
-        due_after=due_after,
-        skip=skip,
-        limit=limit,
-    )
+    # params.model_dump() có priority, sort_by_priority (nếu đã thêm) -> khớp tham số service
+    return task_service.get_tasks(db, **params.model_dump())
 
 
 @router.get("/{task_id}", response_model=TaskOut)

@@ -1,4 +1,8 @@
+import uuid
+from datetime import date, datetime, time, timedelta
 from typing import Optional
+
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.project_data import Project
@@ -6,18 +10,54 @@ from app.models.user_data import User
 from app.schemas.project_schema import ProjectCreate, ProjectUpdate
 
 
-def list_projects(db: Session) -> list[Project]:
-    """Get all projects ordered by created_at descending"""
-    return db.query(Project).order_by(Project.created_at.desc()).all()
+def list_projects(
+    db: Session,
+    search: Optional[str] = None,
+    owner_id: Optional[uuid.UUID] = None,
+    created_after: Optional[date] = None,
+    created_before: Optional[date] = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> tuple[list[Project], int]:
+    query = db.query(Project)
+
+    if search and search.strip():
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                func.unaccent(Project.name).ilike(func.unaccent(pattern)),
+                func.unaccent(Project.description).ilike(func.unaccent(pattern)),
+            )
+        )
+
+    if owner_id is not None:
+        query = query.filter(Project.owner_id == owner_id)
+
+    if created_after:
+        query = query.filter(
+            Project.created_at >= datetime.combine(created_after, time.min)
+        )
+
+    if created_before:
+        # Tính đến hết ngày được chọn
+        end = datetime.combine(created_before + timedelta(days=1), time.min)
+        query = query.filter(Project.created_at < end)
+
+    total = query.count()
+    items = (
+        query.order_by(Project.created_at.desc(), Project.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return items, total
 
 
 def get_project(db: Session, project_id: int) -> Optional[Project]:
-    """Get a single project by id"""
     return db.query(Project).filter(Project.id == project_id).first()
 
 
 def create_project(db: Session, payload: ProjectCreate) -> Project:
-    """Create a new project"""
     # Validate owner_id exists if provided
     if payload.owner_id is not None:
         owner = db.query(User).filter(User.id == payload.owner_id).first()
@@ -36,7 +76,6 @@ def update_project(
     project_id: int,
     payload: ProjectUpdate
 ) -> Optional[Project]:
-    """Update a project"""
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         return None
@@ -59,7 +98,6 @@ def update_project(
 
 
 def delete_project(db: Session, project_id: int) -> bool:
-    """Delete a project (cascades to tasks)"""
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         return False

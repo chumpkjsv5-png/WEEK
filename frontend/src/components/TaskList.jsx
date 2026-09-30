@@ -2,6 +2,7 @@ import {
   TASK_STATUS,
   TASK_STATUS_LABEL,
 } from "../constants/taskStatus";
+import { TASK_PRIORITY_LABEL } from "../constants/taskPriority";
 
 export default function TaskList({
   status,
@@ -12,11 +13,7 @@ export default function TaskList({
   onDelete,
 }) {
   if (status === "loading") {
-    return (
-      <div className="state-message">
-        Đang tải danh sách task...
-      </div>
-    );
+    return <div className="state-message">Đang tải danh sách task...</div>;
   }
 
   if (status === "error") {
@@ -28,86 +25,44 @@ export default function TaskList({
   }
 
   if (status === "success" && tasks.length === 0) {
-    return (
-      <div className="state-message">
-        Chưa có task nào.
-      </div>
-    );
+    return <div className="state-message">Chưa có task nào.</div>;
   }
 
   return (
     <div className="task-table">
-
       <div className="task-table-header">
-
-        {/* <div className="task-check"></div> */}
-
         <div>Title</div>
-
         <div>Status</div>
-
+        <div>Priority</div>
         <div>Due Date</div>
-
         <div>Actions</div>
-
       </div>
 
       {tasks.map((task) => (
-
-        <div
-          className="task-table-row"
-          key={task.id}
-        >
-
-          {/* <div className="task-check">
-
-            <input
-              type="checkbox"
-              checked={task.status === TASK_STATUS.COMPLETED}
-              onChange={() => {
-                if (
-                  task.status !== TASK_STATUS.COMPLETED
-                ) {
-                  onComplete(task.id);
-                }
-              }}
-            />
-
-          </div> */}
-
+        <div className="task-table-row" key={task.id}>
           <div className="task-information">
-
-            <span className="task-title">
-              {task.title}
-            </span>
+            <span className="task-title">{task.title}</span>
 
             {task.description && (
-              <span className="task-description">
-                {task.description}
-              </span>
+              <span className="task-description">{task.description}</span>
             )}
-
           </div>
 
           <div>
-
-            <span
-              className={`status-badge status-${task.status}`}
-            >
-              {TASK_STATUS_LABEL[task.status] ||
-                task.status}
+            <span className={`status-badge status-${task.status}`}>
+              {TASK_STATUS_LABEL[task.status] || task.status}
             </span>
-
           </div>
 
-          <div className="task-due-date">
-
-            {task.due_date || "—"}
-
+          <div>
+            <span className={`priority-badge priority-${task.priority}`}>
+              {TASK_PRIORITY_LABEL[task.priority] || task.priority}
+            </span>
           </div>
+
+          <div className="task-due-date">{task.due_date || "—"}</div>
 
           <div className="task-actions">
-
             {task.status !== TASK_STATUS.COMPLETED && (
               <button
                 type="button"
@@ -136,13 +91,9 @@ export default function TaskList({
             >
               Xoá
             </button>
-
           </div>
-
         </div>
-
       ))}
-
     </div>
   );
 }

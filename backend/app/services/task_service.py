@@ -1,3 +1,4 @@
+from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
@@ -8,7 +9,17 @@ from datetime import date
 from app.models.task_data import Task
 from app.models.project_data import Project
 from app.models.user_data import User
-from app.schemas.task_schema import TaskCreate, TaskUpdate, TaskStatus
+from app.schemas.task_schema import (
+    TaskCreate,
+    TaskUpdate,
+    TaskStatus,
+    TaskPriority,
+)
+
+
+def _to_db(data: dict) -> dict:
+    """Đổi các Enum (TaskStatus, TaskPriority) thành chuỗi thường trước khi lưu DB."""
+    return {k: (v.value if isinstance(v, Enum) else v) for k, v in data.items()}
 
 
 def create_task(db: Session, task_data: TaskCreate) -> Task:
@@ -21,7 +32,7 @@ def create_task(db: Session, task_data: TaskCreate) -> Task:
         if not assignee:
             raise ValueError("assignee_id không tồn tại")
 
-    new_task = Task(**task_data.model_dump())
+    new_task = Task(**_to_db(task_data.model_dump()))
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -31,14 +42,17 @@ def create_task(db: Session, task_data: TaskCreate) -> Task:
 def get_task(db: Session, task_id: int) -> Optional[Task]:
     return db.get(Task, task_id)
 
+
 def get_tasks(
     db: Session,
     project_id: Optional[int] = None,
     search: Optional[str] = None,
     status: Optional[TaskStatus] = None,
+    priority: Optional[TaskPriority] = None,
     assignee_id: Optional[UUID] = None,
     due_before: Optional[date] = None,
     due_after: Optional[date] = None,
+    sort_by_priority: bool = False,
     skip: int = 0,
     limit: int = 100,
 ) -> dict:
@@ -49,19 +63,30 @@ def get_tasks(
     if search:
         query = query.where(Task.title.ilike(f"%{search}%"))
     if status:
-        query = query.where(Task.status == status)
+        query = query.where(Task.status == status.value)
+    if priority:
+        query = query.where(Task.priority == priority.value)
     if assignee_id:
         query = query.where(Task.assignee_id == assignee_id)
     if due_before:
-        query = query.where(Task.due_date <= due_before)
+        query = query.where(Task.due_date < due_before)
     if due_after:
-        query = query.where(Task.due_date >= due_after)
+        query = query.where(Task.due_date > due_after)
 
-    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0   
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
 
-    query = query.order_by(Task.due_date.asc().nulls_last(), Task.id.asc())
+    if sort_by_priority:
+        # Postgres sắp enum theo thứ tự khai báo (Low < Medium < High)
+        # nên DESC sẽ ra High -> Medium -> Low
+        query = query.order_by(
+            Task.priority.desc(),
+            Task.due_date.asc().nulls_last(),
+            Task.id.asc(),
+        )
+    else:
+        query = query.order_by(Task.due_date.asc().nulls_last(), Task.id.asc())
+
     query = query.offset(skip).limit(limit)
-
     items = db.scalars(query).all()
 
     return {"items": items, "total": total, "skip": skip, "limit": limit}
@@ -84,7 +109,7 @@ def update_task(db: Session, task_id: int, task_update: TaskUpdate) -> Optional[
         if not assignee:
             raise ValueError("assignee_id không tồn tại")
 
-    for field, value in update_data.items():
+    for field, value in _to_db(update_data).items():
         setattr(task, field, value)
 
     db.commit()
@@ -97,7 +122,7 @@ def complete_task(db: Session, task_id: int) -> Optional[Task]:
     if not task:
         return None
 
-    task.status = TaskStatus.completed
+    task.status = TaskStatus.completed.value
     db.commit()
     db.refresh(task)
     return task

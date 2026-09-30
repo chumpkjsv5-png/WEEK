@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { TASK_PRIORITY_OPTIONS } from "../constants/taskPriority";
 import TaskHeader from "../components/TaskHeader";
 import TaskTabs from "../components/TaskTabs";
 import TaskSearch from "../components/TaskSearch";
@@ -8,6 +9,8 @@ import TaskFilters from "../components/TaskFilters";
 import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
 import Pagination from "../components/Pagination";
+import useDebounce from "../hooks/useDebounce";
+
 
 import "../css/Main.css";
 
@@ -31,6 +34,14 @@ export default function TasksPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
 
+  const [priorityFilter, setPriorityFilter] = useState("");
+
+  const debouncedSearch = useDebounce(search, 1000);
+
+  useEffect(() => {
+  setCurrentPage(1);
+}, [debouncedSearch]);
+
   const {
     tasks,
     status,
@@ -40,12 +51,13 @@ export default function TasksPage() {
     finishTask,
     removeTask,
   } = useTasks({
-    search,
+    search: debouncedSearch,
     statusFilter,
+    priorityFilter, 
     projectId,
     assigneeId,
     dueBefore,
-    dueAfter,
+    dueAfter, 
   });
 
   // Pagination logic
@@ -55,6 +67,7 @@ export default function TasksPage() {
   const paginatedTasks = tasks.slice(startIndex, endIndex);
 
   function handleClearFilters() {
+    setPriorityFilter("");
     setAssigneeId("");
     setDueBefore("");
     setDueAfter("");
@@ -137,11 +150,7 @@ export default function TasksPage() {
 
       <TaskSearch 
         value={search} 
-        onChange={(q) => {
-          setSearch(q);
-          setCurrentPage(1);
-        }} 
-      />
+        onChange={setSearch} />
 
       <TaskFilters
         assigneeId={assigneeId}
@@ -161,6 +170,20 @@ export default function TasksPage() {
         }}
         onClear={handleClearFilters}
       />
+      <div className="priority-filter">
+        <select
+          value={priorityFilter}
+          onChange={(e) => {
+            setPriorityFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All priorities</option>
+          {TASK_PRIORITY_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
 
       {actionError && <div className="action-error">{actionError}</div>}
 
