@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 
 import { TASK_PRIORITY_OPTIONS } from "../constants/taskPriority";
 import TaskHeader from "../components/TaskHeader";
@@ -10,89 +11,74 @@ import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
 import Pagination from "../components/Pagination";
 import useDebounce from "../hooks/useDebounce";
-
-
 import "../css/Main.css";
 
-import { useTasks } from "../hooks/useTasks";
+import {
+  fetchTasks, addTask, editTask, finishTask, removeTask,
+  setFilter, clearFilters, setPage,
+} from "../features/tasks/tasksSlice";
+import {
+  ITEMS_PER_PAGE, selectFilters, selectStatus, selectError,
+  selectCurrentPage, selectTotalPages, selectPaginatedTasks, selectAllTasks,
+} from "../features/tasks/tasksSelectors";
 
 export default function TasksPage() {
+  const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get("project_id");
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueBefore, setDueBefore] = useState("");
-  const [dueAfter, setDueAfter] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  // --- state từ Redux ---
+  const filters = useSelector(selectFilters);
+  const status = useSelector(selectStatus);
+  const error = useSelector(selectError);
+  const currentPage = useSelector(selectCurrentPage);
+  const totalPages = useSelector(selectTotalPages);
+  const paginatedTasks = useSelector(selectPaginatedTasks);
+  const allTasks = useSelector(selectAllTasks);
 
+  // --- state UI cục bộ ---
   const [editingTask, setEditingTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const [priorityFilter, setPriorityFilter] = useState("");
+  const debouncedSearch = useDebounce(filters.search, 1000);
 
-  const debouncedSearch = useDebounce(search, 1000);
-
+  // Gọi API mỗi khi filter đổi
   useEffect(() => {
-  setCurrentPage(1);
-}, [debouncedSearch]);
+    dispatch(
+      fetchTasks({
+        search: debouncedSearch,
+        statusFilter: filters.statusFilter,
+        priorityFilter: filters.priorityFilter,
+        assigneeId: filters.assigneeId,
+        dueBefore: filters.dueBefore,
+        dueAfter: filters.dueAfter,
+        projectId,
+      })
+    );
+  }, [
+    dispatch, debouncedSearch, projectId,
+    filters.statusFilter, filters.priorityFilter,
+    filters.assigneeId, filters.dueBefore, filters.dueAfter,
+  ]);
 
-  const {
-    tasks,
-    status,
-    error,
-    addTask,
-    editTask,
-    finishTask,
-    removeTask,
-  } = useTasks({
-    search: debouncedSearch,
-    statusFilter,
-    priorityFilter, 
-    projectId,
-    assigneeId,
-    dueBefore,
-    dueAfter, 
-  });
-
-  // Pagination logic
-  const totalPages = Math.ceil(tasks.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedTasks = tasks.slice(startIndex, endIndex);
-
-  function handleClearFilters() {
-    setPriorityFilter("");
-    setAssigneeId("");
-    setDueBefore("");
-    setDueAfter("");
-    setCurrentPage(1);
-  }
-
-  function handlePageChange(page) {
-    setCurrentPage(page);
-    window.scrollTo(0, 0);
-  }
+  const update = (key) => (value) => dispatch(setFilter({ key, value }));
 
   async function handleSubmit(payload) {
     setSubmitting(true);
     setActionError("");
     try {
       if (editingTask) {
-        await editTask(editingTask.id, payload);
+        await dispatch(editTask({ id: editingTask.id, payload })).unwrap();
       } else {
-        await addTask(payload);
+        await dispatch(addTask(payload)).unwrap();
       }
       setEditingTask(null);
       setShowForm(false);
-      setCurrentPage(1);
+      dispatch(setPage(1));
     } catch (err) {
-      setActionError(err.message);
+      setActionError(typeof err === "string" ? err : err.message);
     } finally {
       setSubmitting(false);
     }
@@ -101,9 +87,9 @@ export default function TasksPage() {
   async function handleComplete(id) {
     setActionError("");
     try {
-      await finishTask(id);
+      await dispatch(finishTask(id)).unwrap();
     } catch (err) {
-      setActionError(err.message);
+      setActionError(typeof err === "string" ? err : err.message);
     }
   }
 
@@ -111,10 +97,15 @@ export default function TasksPage() {
     if (!window.confirm("Xoá task này?")) return;
     setActionError("");
     try {
-      await removeTask(id);
+      await dispatch(removeTask(id)).unwrap();
     } catch (err) {
-      setActionError(err.message);
+      setActionError(typeof err === "string" ? err : err.message);
     }
+  }
+
+  function handlePageChange(page) {
+    dispatch(setPage(page));
+    window.scrollTo(0, 0);
   }
 
   function openCreateForm() {
@@ -140,43 +131,24 @@ export default function TasksPage() {
     <div className="page">
       <TaskHeader onNewTask={openCreateForm} projectId={projectId} />
 
-      <TaskTabs 
-        value={statusFilter} 
-        onChange={(status) => {
-          setStatusFilter(status);
-          setCurrentPage(1);
-        }} 
-      />
+      <TaskTabs value={filters.statusFilter} onChange={update("statusFilter")} />
 
-      <TaskSearch 
-        value={search} 
-        onChange={setSearch} />
+      <TaskSearch value={filters.search} onChange={update("search")} />
 
       <TaskFilters
-        assigneeId={assigneeId}
-        onAssigneeIdChange={(value) => {
-          setAssigneeId(value);
-          setCurrentPage(1);
-        }}
-        dueBefore={dueBefore}
-        onDueBeforeChange={(value) => {
-          setDueBefore(value);
-          setCurrentPage(1);
-        }}
-        dueAfter={dueAfter}
-        onDueAfterChange={(value) => {
-          setDueAfter(value);
-          setCurrentPage(1);
-        }}
-        onClear={handleClearFilters}
+        assigneeId={filters.assigneeId}
+        onAssigneeIdChange={update("assigneeId")}
+        dueBefore={filters.dueBefore}
+        onDueBeforeChange={update("dueBefore")}
+        dueAfter={filters.dueAfter}
+        onDueAfterChange={update("dueAfter")}
+        onClear={() => dispatch(clearFilters())}
       />
+
       <div className="priority-filter">
         <select
-          value={priorityFilter}
-          onChange={(e) => {
-            setPriorityFilter(e.target.value);
-            setCurrentPage(1);
-          }}
+          value={filters.priorityFilter}
+          onChange={(e) => update("priorityFilter")(e.target.value)}
         >
           <option value="">All priorities</option>
           {TASK_PRIORITY_OPTIONS.map((o) => (
@@ -201,8 +173,8 @@ export default function TasksPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
-          totalItems={tasks.length}
-          itemsPerPage={itemsPerPage}
+          totalItems={allTasks.length}
+          itemsPerPage={ITEMS_PER_PAGE}
         />
       )}
 
