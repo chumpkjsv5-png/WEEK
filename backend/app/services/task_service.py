@@ -56,6 +56,9 @@ def get_tasks(
     skip: int = 0,
     limit: int = 100,
 ) -> dict:
+
+    if assignee_id is not None and not db.get(User, assignee_id):
+        raise ValueError("assignee_id không tồn tại")
     query = select(Task)
 
     if project_id is not None:

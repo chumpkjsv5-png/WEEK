@@ -1,10 +1,9 @@
-import uuid
-
-from pydantic import BaseModel, EmailStr, ConfigDict
+from uuid import UUID
+from pydantic import BaseModel
 
 
 class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID
-    email: EmailStr
+    id: UUID
+    email: str
     full_name: str
+    model_config = {"from_attributes": True}

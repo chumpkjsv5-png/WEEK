@@ -4,23 +4,16 @@ import * as taskApi from "../../api/taskApi"; // đổi theo file API của bạ
 
 const toMessage = (err) => err?.message || "Có lỗi xảy ra";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
-
 export const fetchTasks = createAsyncThunk(
   "tasks/fetch",
   async (params, { rejectWithValue }) => {
     try {
-      const assigneeId = UUID_REGEX.test(params.assigneeId ?? "")
-        ? params.assigneeId
-        : undefined;
-
       return await taskApi.getTasks({
         projectId: params.projectId,
         search: params.search,
         status: params.statusFilter,
         priority: params.priorityFilter,
-        assigneeId,
+        assigneeId: params.assigneeId,
         dueBefore: params.dueBefore,
         dueAfter: params.dueAfter,
       });
@@ -28,7 +21,7 @@ export const fetchTasks = createAsyncThunk(
       return rejectWithValue(toMessage(err));
     }
   }
-);  
+);
 
 export const addTask = createAsyncThunk(
   "tasks/add",

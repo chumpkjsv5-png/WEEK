@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { getUsers } from "../api/userApi";
+
 export default function TaskFilters({
   assigneeId,
   onAssigneeIdChange,
@@ -6,15 +9,29 @@ export default function TaskFilters({
   dueAfter,
   onDueAfterChange,
 }) {
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    getUsers()
+      .then((data) => setUsers(Array.isArray(data) ? data : data.items ?? []))
+      .catch(() => setUsers([]));
+  }, []);
+
   return (
     <div className="task-filters">
       <div className="filter-field">
-        <label>Assignee ID</label>
-        <input
+        <label>Assignee</label>
+        <select
           value={assigneeId}
           onChange={(e) => onAssigneeIdChange(e.target.value)}
-          placeholder="UUID của người được giao"
-        />
+        >
+          <option value="">All assignees</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.full_name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="filter-field">

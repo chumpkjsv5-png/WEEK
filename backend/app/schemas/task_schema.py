@@ -29,7 +29,7 @@ class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
     status: Optional[TaskStatus] = TaskStatus.pending
-    priority: TaskPriority = TaskPriority.Medium
+    priority: Optional[TaskPriority] = None
     assignee_id: Optional[UUID] = None  
     due_date: Optional[date] = None
 

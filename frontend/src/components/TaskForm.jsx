@@ -9,6 +9,7 @@ import {
   TASK_PRIORITY_OPTIONS,
 } from "../constants/taskPriority";
 import { getProjects } from "../api/projectApi";
+import { getUsers } from "../api/userApi";
 
 export default function TaskForm({
   editingTask,
@@ -23,7 +24,9 @@ export default function TaskForm({
   const [priority, setPriority] = useState(TASK_PRIORITY.MEDIUM);
   const [dueDate, setDueDate] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
 
   // Load danh sách project cho dropdown
@@ -31,6 +34,13 @@ export default function TaskForm({
     getProjects({ page: 1, page_size: 100 })
       .then((data) => setProjects(Array.isArray(data.items) ? data.items : []))
       .catch(() => setProjects([]));
+  }, []);
+
+  // Load danh sách user cho dropdown assignee
+  useEffect(() => {
+    getUsers()
+      .then((data) => setUsers(Array.isArray(data) ? data : data.items ?? []))
+      .catch(() => setUsers([]));
   }, []);
 
   useEffect(() => {
@@ -41,6 +51,7 @@ export default function TaskForm({
       setPriority(editingTask.priority || TASK_PRIORITY.MEDIUM);
       setDueDate(editingTask.due_date || "");
       setProjectId(editingTask.project_id || "");
+      setAssigneeId(editingTask.assignee_id || "");
     } else {
       setTitle("");
       setDescription("");
@@ -48,6 +59,7 @@ export default function TaskForm({
       setPriority(TASK_PRIORITY.MEDIUM);
       setDueDate("");
       setProjectId(defaultProjectId || "");
+      setAssigneeId("");
     }
 
     setError("");
@@ -74,6 +86,7 @@ export default function TaskForm({
       description: description.trim() || null,
       status,
       priority,
+      assignee_id: assigneeId || null,
       due_date: dueDate || null,
     });
   }
@@ -138,6 +151,21 @@ export default function TaskForm({
           {TASK_PRIORITY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-field">
+        <label>Assignee</label>
+        <select
+          value={assigneeId}
+          onChange={(e) => setAssigneeId(e.target.value)}
+        >
+          <option value="">-- Chưa giao --</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.full_name}
             </option>
           ))}
         </select>

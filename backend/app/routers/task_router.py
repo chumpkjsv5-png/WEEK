@@ -20,6 +20,8 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     try:
         return task_service.create_task(db, task)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -29,8 +31,10 @@ def get_tasks(
     params: Annotated[TaskFilterParams, Query()],
     db: Session = Depends(get_db),
 ):
-    # params.model_dump() có priority, sort_by_priority (nếu đã thêm) -> khớp tham số service
-    return task_service.get_tasks(db, **params.model_dump())
+    try:
+        return task_service.get_tasks(db, **params.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/{task_id}", response_model=TaskOut)
@@ -45,6 +49,8 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get_db)):
     try:
         task = task_service.update_task(db, task_id, task_update)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not task:

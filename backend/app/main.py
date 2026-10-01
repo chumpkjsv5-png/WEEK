@@ -7,7 +7,7 @@ from app.database import Base, engine
 # from app.models.task_data import Task
 
 # Import router
-from app.routers import task_router, project_router
+from app.routers import task_router, project_router, user_router
 
 
 app = FastAPI(
@@ -60,3 +60,4 @@ def health_check():
 # Include router Task
 app.include_router(task_router.router)
 app.include_router(project_router.router)
+app.include_router(user_router.router)

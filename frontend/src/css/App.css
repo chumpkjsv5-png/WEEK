@@ -49,6 +49,23 @@
 .filter-field input::placeholder {
   color: #ccc;
 }
+
+.filter-field input,
+.filter-field select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: white;
+  transition: all 0.2s ease;
+  color: black;
+}
+
+.filter-field select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
 * {
   box-sizing: border-box;
 }
