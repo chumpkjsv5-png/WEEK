@@ -1,3 +1,8 @@
+from datetime import date, datetime
+from enum import Enum
+from typing import List, Optional
+from uuid import UUID
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -5,17 +10,18 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing import Optional, List
-from datetime import date, datetime
-from uuid import UUID
-from enum import Enum
+
+# Các field không được phép set null khi update
+IMPORTANT_FIELDS = ("project_id", "title", "status", "priority")
+
+DEFAULT_LIMIT = 20
+MAX_LIMIT = 100
 
 
 class TaskPriority(str, Enum):
     Low = "Low"
     Medium = "Medium"
     High = "High"
-
 
 
 class TaskStatus(str, Enum):
@@ -30,7 +36,7 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatus] = TaskStatus.pending
     priority: Optional[TaskPriority] = None
-    assignee_id: Optional[UUID] = None  
+    assignee_id: Optional[UUID] = None
     due_date: Optional[date] = None
 
 
@@ -40,6 +46,8 @@ class TaskCreate(TaskBase):
     project_id: int = Field(..., ge=1)
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=5000)
+    status: TaskStatus = TaskStatus.pending
+    priority: TaskPriority = TaskPriority.Medium
 
 
 class TaskUpdate(BaseModel):
@@ -49,7 +57,7 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=5000)
     status: Optional[TaskStatus] = None
-    priority: TaskPriority = TaskPriority.Medium
+    priority: Optional[TaskPriority] = None
     assignee_id: Optional[UUID] = None
     due_date: Optional[date] = None
 
@@ -58,8 +66,7 @@ class TaskUpdate(BaseModel):
         if not self.model_fields_set:
             raise ValueError("Cần ít nhất một trường để cập nhật")
 
-        # Các trường này không được phép null; chỉ description/assignee_id/due_date được xóa
-        for name in ("project_id", "title", "status","priority"):
+        for name in IMPORTANT_FIELDS:
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} không được để null")
         return self
@@ -78,6 +85,7 @@ class TaskListOut(BaseModel):
     total: int
     skip: int
     limit: int
+    has_more: bool
 
 
 class TaskFilterParams(BaseModel):
@@ -88,10 +96,11 @@ class TaskFilterParams(BaseModel):
     priority: Optional[TaskPriority] = None
     project_id: Optional[int] = Field(default=None, ge=1)
     assignee_id: Optional[UUID] = None
-    due_after: Optional[date] = None
-    due_before: Optional[date] = None
+    due_after: Optional[date] = None   # due_date >= due_after
+    due_before: Optional[date] = None  # due_date <= due_before
+    sort_by_priority: bool = False
     skip: int = Field(default=0, ge=0)
-    limit: int = Field(default=100, ge=1, le=500)
+    limit: int = Field(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT)
 
     @field_validator("search")
     @classmethod

@@ -1,8 +1,9 @@
 // src/features/tasks/tasksSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import * as taskApi from "../../api/taskApi"; // đổi theo file API của bạn
+import * as taskApi from "../../api/taskApi";
 
-const toMessage = (err) => err?.message || "Có lỗi xảy ra";
+const toMessage = (err) =>
+  err?.response?.data?.detail?.toString?.() || err?.message || "Có lỗi xảy ra";
 
 export const fetchTasks = createAsyncThunk(
   "tasks/fetch",
@@ -16,6 +17,9 @@ export const fetchTasks = createAsyncThunk(
         assigneeId: params.assigneeId,
         dueBefore: params.dueBefore,
         dueAfter: params.dueAfter,
+        sortByPriority: params.sortByPriority,
+        skip: (params.page - 1) * params.limit, // trang -> skip
+        limit: params.limit,
       });
     } catch (err) {
       return rejectWithValue(toMessage(err));
@@ -69,9 +73,9 @@ export const removeTask = createAsyncThunk(
 );
 
 const initialState = {
-  items: [],
-  total: 0,
-  status: "idle", // idle | loading | succeeded | failed
+  items: [], // chỉ chứa task của TRANG HIỆN TẠI
+  total: 0, // tổng số task khớp bộ lọc (từ backend)
+  status: "idle", // idle | loading | success | error
   error: null,
   filters: {
     search: "",
@@ -80,13 +84,9 @@ const initialState = {
     assigneeId: "",
     dueBefore: "",
     dueAfter: "",
+    sortByPriority: false,
   },
   currentPage: 1,
-};
-
-const replaceById = (state, action) => {
-  const i = state.items.findIndex((t) => t.id === action.payload.id);
-  if (i !== -1) state.items[i] = action.payload;
 };
 
 const tasksSlice = createSlice({
@@ -96,7 +96,7 @@ const tasksSlice = createSlice({
     setFilter(state, action) {
       const { key, value } = action.payload;
       state.filters[key] = value;
-      state.currentPage = 1;
+      state.currentPage = 1; // đổi lọc/sắp xếp thì về trang 1
     },
     clearFilters(state) {
       state.filters.priorityFilter = "";
@@ -109,28 +109,28 @@ const tasksSlice = createSlice({
       state.currentPage = action.payload;
     },
   },
+  // Thêm/sửa/hoàn thành/xóa: không sửa items thủ công,
+  // vì thứ tự và tổng số do backend quyết định -> trang sẽ gọi lại fetchTasks.
   extraReducers: (builder) => {
     builder
       .addCase(fetchTasks.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
-        .addCase(fetchTasks.fulfilled, (state, action) => {
+      .addCase(fetchTasks.fulfilled, (state, action) => {
         state.status = "success";
         state.items = action.payload.items ?? [];
         state.total = action.payload.total ?? 0;
-        })
+
+        // Đang ở trang vượt quá tổng số trang (vd vừa xóa task cuối) -> lùi về trang cuối
+        const limit = action.meta.arg.limit;
+        const totalPages = Math.max(1, Math.ceil(state.total / limit));
+        if (state.currentPage > totalPages) state.currentPage = totalPages;
+      })
       .addCase(fetchTasks.rejected, (state, action) => {
+        if (action.meta.aborted) return; // request cũ bị huỷ, bỏ qua
         state.status = "error";
         state.error = action.payload ?? action.error.message;
-      })
-      .addCase(addTask.fulfilled, (state, action) => {
-        state.items.unshift(action.payload);
-      })
-      .addCase(editTask.fulfilled, replaceById)
-      .addCase(finishTask.fulfilled, replaceById)
-      .addCase(removeTask.fulfilled, (state, action) => {
-        state.items = state.items.filter((t) => t.id !== action.payload);
       });
   },
 });

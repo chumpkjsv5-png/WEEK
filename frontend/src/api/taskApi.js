@@ -1,28 +1,31 @@
   import axiosClient from "./axiosClient";
+  import { ITEMS_PER_PAGE } from "../features/tasks/tasksSelectors";
 
-  export async function getTasks({
-    projectId,        // Story 1: group by project
-    search,
-    status,
-    priority,
-    assigneeId,        // Story 2: filter theo assignee
-    dueBefore,          // Story 2: filter theo date
-    dueAfter,
-    skip = 0,
-    limit = 100,
-  } = {}) {
-    const params = { skip, limit };
-    if (projectId) params.project_id = projectId;
-    if (search) params.search = search;
-    if (status) params.status = status;
-    if (priority) params.priority = priority;
-    if (assigneeId) params.assignee_id = assigneeId;
-    if (dueBefore) params.due_before = dueBefore;
-    if (dueAfter) params.due_after = dueAfter;
+export async function getTasks({
+  projectId,
+  search,
+  status,
+  priority,
+  assigneeId,
+  dueBefore,
+  dueAfter,
+  sortByPriority = false,   // thêm
+  skip = 0,
+  limit = ITEMS_PER_PAGE,
+} = {}) {
+  const params = { skip, limit };
+  if (projectId) params.project_id = projectId;
+  if (search) params.search = search;
+  if (status) params.status = status;
+  if (priority) params.priority = priority;
+  if (assigneeId) params.assignee_id = assigneeId;
+  if (dueBefore) params.due_before = dueBefore;
+  if (dueAfter) params.due_after = dueAfter;
+  if (sortByPriority) params.sort_by_priority = true;   // thêm
 
-    const res = await axiosClient.get("/tasks/", { params });
-    return res.data; // { items, total, skip, limit }
-  }
+  const res = await axiosClient.get("/tasks/", { params });
+  return res.data; // { items, total, skip, limit, has_more }
+}
 
   export async function getTask(id) {
     const res = await axiosClient.get(`/tasks/${id}`);

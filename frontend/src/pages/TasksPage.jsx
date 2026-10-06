@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -19,7 +19,7 @@ import {
 } from "../features/tasks/tasksSlice";
 import {
   ITEMS_PER_PAGE, selectFilters, selectStatus, selectError,
-  selectCurrentPage, selectTotalPages, selectPaginatedTasks, selectAllTasks,
+  selectCurrentPage, selectTotalPages, selectTasks, selectTotal,
 } from "../features/tasks/tasksSelectors";
 
 export default function TasksPage() {
@@ -33,8 +33,8 @@ export default function TasksPage() {
   const error = useSelector(selectError);
   const currentPage = useSelector(selectCurrentPage);
   const totalPages = useSelector(selectTotalPages);
-  const paginatedTasks = useSelector(selectPaginatedTasks);
-  const allTasks = useSelector(selectAllTasks);
+  const tasks = useSelector(selectTasks); // task của trang hiện tại
+  const total = useSelector(selectTotal); // tổng số task khớp bộ lọc
 
   // --- state UI cục bộ ---
   const [editingTask, setEditingTask] = useState(null);
@@ -44,24 +44,36 @@ export default function TasksPage() {
 
   const debouncedSearch = useDebounce(filters.search, 1000);
 
-  // Gọi API mỗi khi filter đổi
-  useEffect(() => {
-    dispatch(
-      fetchTasks({
-        search: debouncedSearch,
-        statusFilter: filters.statusFilter,
-        priorityFilter: filters.priorityFilter,
-        assigneeId: filters.assigneeId,
-        dueBefore: filters.dueBefore,
-        dueAfter: filters.dueAfter,
-        projectId,
-      })
-    );
-  }, [
-    dispatch, debouncedSearch, projectId,
-    filters.statusFilter, filters.priorityFilter,
-    filters.assigneeId, filters.dueBefore, filters.dueAfter,
-  ]);
+  // Gọi API theo bộ lọc + trang hiện tại
+  const load = useCallback(
+    () =>
+      dispatch(
+        fetchTasks({
+          search: debouncedSearch,
+          statusFilter: filters.statusFilter,
+          priorityFilter: filters.priorityFilter,
+          assigneeId: filters.assigneeId,
+          dueBefore: filters.dueBefore,
+          dueAfter: filters.dueAfter,
+          sortByPriority: filters.sortByPriority,
+          projectId,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+      ),
+    [
+      dispatch, debouncedSearch, projectId, currentPage,
+      filters.statusFilter, filters.priorityFilter,
+      filters.assigneeId, filters.dueBefore, filters.dueAfter,
+      filters.sortByPriority,
+    ]
+  );
+
+  // Đổi lọc, sắp xếp hoặc trang -> gọi lại. Huỷ request cũ để tránh kết quả về sai thứ tự.
+  useEffect(() => { 
+    const promise = load();
+    return () => promise.abort();
+  }, [load]);
 
   const update = (key) => (value) => dispatch(setFilter({ key, value }));
 
@@ -71,12 +83,15 @@ export default function TasksPage() {
     try {
       if (editingTask) {
         await dispatch(editTask({ id: editingTask.id, payload })).unwrap();
+        load();
       } else {
         await dispatch(addTask(payload)).unwrap();
+        // Task mới: về trang 1 (đổi trang sẽ tự gọi lại, đang ở trang 1 thì gọi tay)
+        if (currentPage !== 1) dispatch(setPage(1));
+        else load();
       }
       setEditingTask(null);
       setShowForm(false);
-      dispatch(setPage(1));
     } catch (err) {
       setActionError(typeof err === "string" ? err : err.message);
     } finally {
@@ -88,6 +103,7 @@ export default function TasksPage() {
     setActionError("");
     try {
       await dispatch(finishTask(id)).unwrap();
+      load(); // task có thể biến mất khỏi danh sách nếu đang lọc theo status
     } catch (err) {
       setActionError(typeof err === "string" ? err : err.message);
     }
@@ -98,6 +114,7 @@ export default function TasksPage() {
     setActionError("");
     try {
       await dispatch(removeTask(id)).unwrap();
+      load(); // nếu xóa task cuối của trang, slice tự lùi về trang trước
     } catch (err) {
       setActionError(typeof err === "string" ? err : err.message);
     }
@@ -155,13 +172,21 @@ export default function TasksPage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+
+        <select
+          value={filters.sortByPriority ? "priority" : "due"}
+          onChange={(e) => update("sortByPriority")(e.target.value === "priority")}
+        >
+          <option value="due">Sắp theo hạn</option>
+          <option value="priority">Sắp theo độ ưu tiên</option>
+        </select>
       </div>
 
       {actionError && <div className="action-error">{actionError}</div>}
 
       <TaskList
         status={status}
-        tasks={paginatedTasks}
+        tasks={tasks}
         error={error}
         onEdit={openEditForm}
         onComplete={handleComplete}
@@ -173,7 +198,7 @@ export default function TasksPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
-          totalItems={allTasks.length}
+          totalItems={total}
           itemsPerPage={ITEMS_PER_PAGE}
         />
       )}
