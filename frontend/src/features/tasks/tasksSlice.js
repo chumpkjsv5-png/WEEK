@@ -20,7 +20,7 @@ export const fetchTasks = createAsyncThunk(
         sortByPriority: params.sortByPriority,
         skip: (params.page - 1) * params.limit, // trang -> skip
         limit: params.limit,
-      });
+      }); 
     } catch (err) {
       return rejectWithValue(toMessage(err));
     }
