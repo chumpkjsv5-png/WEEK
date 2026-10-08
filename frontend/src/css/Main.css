@@ -83,3 +83,183 @@
   font-weight: 600;
   padding: 0 4px;
 }
+
+/* ===== Phần thành viên project ===== */
+:root {
+  --member-border: #e5e7eb;
+  --member-muted: #6b7280;
+  --member-primary: green;
+  --member-danger: #dc2626;
+  --member-bg: #ffffff;
+}
+
+/* --- Nút "Thành viên" trong bảng project --- */
+.members-btn {
+  background: #eef2ff;
+  color: var(--member-primary);
+  border: 1px solid #c7d2fe;
+}
+.members-btn:hover {
+  background: #e0e7ff;
+}
+
+/* --- Drawer (bỏ khối này nếu Main.css đã có, chỉ cần import Main.css) --- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.task-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 100%;
+  height: 100%;
+  background: var(--member-bg);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  z-index: 101;
+  overflow-y: auto;
+}
+
+.drawer-content {
+  padding: 20px;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.drawer-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.drawer-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--member-muted);
+}
+.drawer-close:hover {
+  color: #111827;
+}
+
+/* --- Panel thành viên --- */
+.members-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.members-add select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--member-border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.members-add button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--member-primary);
+  color: #fff;
+  cursor: pointer;
+}
+.members-add button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Danh sách thành viên --- */
+.members-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.members-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--member-border);
+}
+
+.members-list li:last-child {
+  border-bottom: none;
+}
+
+.members-list li > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.members-list small {
+  color: var(--member-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.members-list em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--member-primary);
+}
+
+.members-list button {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: var(--member-danger);
+  cursor: pointer;
+}
+.members-list button:hover:not(:disabled) {
+  background: #fee2e2;
+}
+.members-list button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Trạng thái và thông báo lỗi --- */
+.state-message {
+  padding: 16px;
+  text-align: center;
+  color: var(--member-muted);
+}
+.state-error {
+  color: var(--member-danger);
+}
+
+.action-error {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: var(--member-danger);
+  font-size: 14px;
+}
+
+/* --- Gợi ý nhỏ trong TaskForm (project chưa có thành viên) --- */
+.form-field small {
+  display: block;
+  margin-top: 4px;
+  color: var(--member-muted);
+  font-size: 12px;
+}

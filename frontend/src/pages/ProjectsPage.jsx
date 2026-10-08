@@ -1,65 +1,75 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjects } from "../hooks/useProjects";
+import { useDispatch, useSelector } from "react-redux";
+
 import useDebounce from "../hooks/useDebounce";
 import ProjectList from "../components/ProjectList";
 import ProjectForm from "../components/ProjectForm";
 import TaskSearch from "../components/TaskSearch";
 import Pagination from "../components/Pagination";
+import ProjectMembersPanel from "../components/ProjectMembersPanel";
 import "../css/projects.css";
+
+import {
+  fetchProjects, addProject, editProject, removeProject,
+  setFilter, setPage,
+} from "../features/projects/projectsSlice";
+import {
+  selectProjects, selectTotal, selectStatus, selectError, selectFilters,
+  selectPage, selectPageSize, selectTotalPages, selectRefreshKey,
+} from "../features/projects/projectsSelectors";
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
+  // --- state từ Redux (đọc) ---
+  const projects = useSelector(selectProjects);
+  const total = useSelector(selectTotal);
+  const status = useSelector(selectStatus);
+  const error = useSelector(selectError);
+  const filters = useSelector(selectFilters);
+  const currentPage = useSelector(selectPage);
+  const pageSize = useSelector(selectPageSize);
+  const totalPages = useSelector(selectTotalPages);
+  const refreshKey = useSelector(selectRefreshKey);
+
+  // --- state UI cục bộ (chỉ trang này dùng) ---
   const [showForm, setShowForm] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [editingProject, setEditingProject] = useState(null);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [ownerId, setOwnerId] = useState("");
-  const [createdAfter, setCreatedAfter] = useState("");
-  const [createdBefore, setCreatedBefore] = useState("");
   const [checkedProjects, setCheckedProjects] = useState(new Set());
+  const [membersProject, setMembersProject] = useState(null); // MỚI: project đang mở panel thành viên
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const debouncedQuery = useDebounce(filters.search, 1000);
+  const debouncedOwnerId = useDebounce(filters.ownerId, 500);
 
-  const debouncedQuery = useDebounce(searchQuery, 1000);
-  const debouncedOwnerId = useDebounce(ownerId, 500);
+  const hasFilters =
+    filters.search || filters.ownerId || filters.createdAfter || filters.createdBefore;
 
-  const {
-    projects,
-    total,
-    status,
-    error,
-    addProject,
-    updateProjectItem,
-    deleteProjectItem,
-  } = useProjects({
-    search: debouncedQuery,
-    ownerId: debouncedOwnerId,
-    createdAfter,
-    createdBefore,
-    page: currentPage,
-    pageSize,
-  });
-
-  const totalPages = Math.ceil(total / pageSize);
-  const hasFilters = searchQuery || ownerId || createdAfter || createdBefore;
-
-  // Đổi bộ lọc -> về trang 1
+  // Tải danh sách khi bộ lọc / trang đổi, hoặc sau thêm-sửa-xóa (refreshKey)
   useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedQuery, debouncedOwnerId, createdAfter, createdBefore]);
+    const promise = dispatch(
+      fetchProjects({
+        search: debouncedQuery,
+        ownerId: debouncedOwnerId,
+        createdAfter: filters.createdAfter,
+        createdBefore: filters.createdBefore,
+        page: currentPage,
+        pageSize,
+      })
+    );
+    return () => promise.abort(); // đổi bộ lọc nhanh thì hủy request cũ
+  }, [
+    dispatch, debouncedQuery, debouncedOwnerId,
+    filters.createdAfter, filters.createdBefore,
+    currentPage, pageSize, refreshKey,
+  ]);
 
-  // Xóa hết project của trang cuối -> lùi 1 trang
-  useEffect(() => {
-    if (status === "success" && projects.length === 0 && currentPage > 1) {
-      setCurrentPage((p) => p - 1);
-    }
-  }, [status, projects.length, currentPage]);
+  const update = (key) => (value) => dispatch(setFilter({ key, value }));
 
   function closeFormWithAnimation() {
     setIsClosing(true);
@@ -75,13 +85,13 @@ export default function ProjectsPage() {
     setSubmitError("");
     try {
       if (editingProject) {
-        await updateProjectItem(editingProject.id, payload);
+        await dispatch(editProject({ id: editingProject.id, payload })).unwrap();
       } else {
-        await addProject(payload);
+        await dispatch(addProject(payload)).unwrap();
       }
       closeFormWithAnimation();
     } catch (err) {
-      setSubmitError(err.response?.data?.detail || err.message);
+      setSubmitError(typeof err === "string" ? err : err.message);
     } finally {
       setSubmitting(false);
     }
@@ -92,13 +102,10 @@ export default function ProjectsPage() {
   }
 
   function handleCheckProject(projectId) {
-    const newChecked = new Set(checkedProjects);
-    if (newChecked.has(projectId)) {
-      newChecked.delete(projectId);
-    } else {
-      newChecked.add(projectId);
-    }
-    setCheckedProjects(newChecked);
+    const next = new Set(checkedProjects);
+    if (next.has(projectId)) next.delete(projectId);
+    else next.add(projectId);
+    setCheckedProjects(next);
   }
 
   function openCreateForm() {
@@ -113,12 +120,24 @@ export default function ProjectsPage() {
     setShowForm(true);
   }
 
+  // MỚI
+  function openMembers(project) {
+    setActionError("");
+    setMembersProject(project);
+  }
+
+  function closeMembers() {
+    setMembersProject(null);
+  }
+
   async function handleDelete(projectId) {
     if (!window.confirm("Xoá project này?")) return;
+    setActionError("");
     try {
-      await deleteProjectItem(projectId);
+      await dispatch(removeProject(projectId)).unwrap();
+      if (membersProject?.id === projectId) setMembersProject(null); // MỚI: đóng panel nếu đang mở project vừa xóa
     } catch (err) {
-      setSubmitError(err.message);
+      setActionError(typeof err === "string" ? err : err.message);
     }
   }
 
@@ -127,7 +146,7 @@ export default function ProjectsPage() {
   }
 
   function handlePageChange(page) {
-    setCurrentPage(page);
+    dispatch(setPage(page));
     window.scrollTo(0, 0);
   }
 
@@ -160,10 +179,22 @@ export default function ProjectsPage() {
         </>
       )}
 
+      {/* MỚI: drawer thành viên, dùng lại class của TasksPage để giữ nguyên giao diện */}
+      {membersProject && (
+        <>
+          <div className="drawer-overlay" onClick={closeMembers} />
+          <aside className="task-drawer">
+            <div className="drawer-content">
+              <ProjectMembersPanel project={membersProject} onClose={closeMembers} />
+            </div>
+          </aside>
+        </>
+      )}
+
       <div className="project-search">
         <TaskSearch
-          value={searchQuery}
-          onChange={setSearchQuery}
+          value={filters.search}
+          onChange={update("search")}
           placeholder="Search projects..."
         />
       </div>
@@ -172,24 +203,25 @@ export default function ProjectsPage() {
         <input
           type="text"
           placeholder="Owner ID"
-          value={ownerId}
-          onChange={(e) => setOwnerId(e.target.value)}
+          value={filters.ownerId}
+          onChange={(e) => update("ownerId")(e.target.value)}
           className="filter-input"
         />
         <input
           type="date"
-          value={createdAfter}
-          onChange={(e) => setCreatedAfter(e.target.value)}
+          value={filters.createdAfter}
+          onChange={(e) => update("createdAfter")(e.target.value)}
           className="filter-input"
         />
         <input
           type="date"
-          value={createdBefore}
-          onChange={(e) => setCreatedBefore(e.target.value)}
+          value={filters.createdBefore}
+          onChange={(e) => update("createdBefore")(e.target.value)}
           className="filter-input"
         />
       </div>
 
+      {actionError && <div className="action-error">{actionError}</div>}
 
       {status === "success" && total === 0 && hasFilters && (
         <p className="empty-state">Không tìm thấy project phù hợp.</p>
@@ -204,6 +236,7 @@ export default function ProjectsPage() {
         onSelect={handleSelectProject}
         onEdit={openEditForm}
         onDelete={handleDelete}
+        onMembers={openMembers}   // MỚI
       />
 
       {totalPages > 1 && (

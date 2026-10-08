@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   TASK_STATUS,
@@ -9,7 +10,10 @@ import {
   TASK_PRIORITY_OPTIONS,
 } from "../constants/taskPriority";
 import { getProjects } from "../api/projectApi";
-import { getUsers } from "../api/userApi";
+import { fetchMembers } from "../features/projectMembers/projectMembersSlice";
+import {
+  selectMembers, selectMembersStatus, selectMembersError,
+} from "../features/projectMembers/projectMembersSelectors";
 
 export default function TaskForm({
   editingTask,
@@ -18,6 +22,8 @@ export default function TaskForm({
   onCancel,
   submitting,
 }) {
+  const dispatch = useDispatch();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(TASK_STATUS.PENDING);
@@ -26,8 +32,13 @@ export default function TaskForm({
   const [projectId, setProjectId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
+
+  // Thành viên của project đang chọn (đọc từ store)
+  const pid = projectId ? Number(projectId) : null;
+  const members = useSelector((s) => selectMembers(s, pid));
+  const membersStatus = useSelector((s) => selectMembersStatus(s, pid));
+  const membersError = useSelector((s) => selectMembersError(s, pid));
 
   // Load danh sách project cho dropdown
   useEffect(() => {
@@ -36,12 +47,12 @@ export default function TaskForm({
       .catch(() => setProjects([]));
   }, []);
 
-  // Load danh sách user cho dropdown assignee
+  // Load thành viên mỗi khi đổi project
   useEffect(() => {
-    getUsers()
-      .then((data) => setUsers(Array.isArray(data) ? data : data.items ?? []))
-      .catch(() => setUsers([]));
-  }, []);
+    if (!pid) return;
+    const promise = dispatch(fetchMembers(pid));
+    return () => promise.abort();
+  }, [dispatch, pid]);
 
   useEffect(() => {
     if (editingTask) {
@@ -64,6 +75,12 @@ export default function TaskForm({
 
     setError("");
   }, [editingTask, defaultProjectId]);
+
+  // Đổi project thì bỏ người được giao, vì người đó có thể không thuộc project mới
+  function handleProjectChange(e) {
+    setProjectId(e.target.value);
+    setAssigneeId("");
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -91,13 +108,19 @@ export default function TaskForm({
     });
   }
 
+  // Task cũ có thể đang giao cho người không còn là thành viên
+  const assigneeMissing =
+    assigneeId &&
+    membersStatus === "success" &&
+    !members.some((m) => m.user_id === assigneeId);
+
   return (
     <form className="task-form" onSubmit={handleSubmit}>
       <div className="form-field">
         <label>
           Project <span>*</span>
         </label>
-        <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+        <select value={projectId} onChange={handleProjectChange}>
           <option value="">-- Chọn project --</option>
           {projects.map((project) => (
             <option key={project.id} value={project.id}>
@@ -161,14 +184,37 @@ export default function TaskForm({
         <select
           value={assigneeId}
           onChange={(e) => setAssigneeId(e.target.value)}
+          disabled={!pid || membersStatus === "loading"}
         >
-          <option value="">-- Chưa giao --</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.full_name}
+          <option value="">
+            {!pid
+              ? "-- Chọn project trước --"
+              : membersStatus === "loading"
+              ? "Đang tải thành viên..."
+              : "-- Chưa giao --"}
+          </option>
+
+          {members.map((m) => (
+            <option key={m.user_id} value={m.user_id}>
+              {m.user.full_name}
             </option>
           ))}
+
+          {assigneeMissing && (
+            <option value={assigneeId}>
+              Người đã giao (không còn là thành viên)
+            </option>
+          )}
         </select>
+
+        {pid && membersStatus === "error" && (
+          <div className="form-error">
+            Không tải được thành viên: {membersError}
+          </div>
+        )}
+        {pid && membersStatus === "success" && members.length === 0 && (
+          <small>Project chưa có thành viên. Thêm ở trang Projects.</small>
+        )}
       </div>
 
       <div className="form-field">

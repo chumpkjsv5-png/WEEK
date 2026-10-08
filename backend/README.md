@@ -30,8 +30,8 @@ backend/
 
 ## Yêu cầu môi trường
 
-- Python 3.10+
-- Tài khoản Neon (PostgreSQL serverless) hoặc PostgreSQL bất kỳ
+- Python 3.11-12
+- PostgreSQL 
 
 ## Cài đặt
 
