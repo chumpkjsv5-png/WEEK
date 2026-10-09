@@ -9,6 +9,10 @@ from app.database import Base, engine
 # Import router
 from app.routers import task_router, project_router, user_router, project_members_router
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from app.core.exceptions import AppError
+
 
 app = FastAPI(
     title="Week Task API",
@@ -56,6 +60,10 @@ def health_check():
         "status": "ok"
     }
 
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 # Include router Task
 app.include_router(task_router.router)

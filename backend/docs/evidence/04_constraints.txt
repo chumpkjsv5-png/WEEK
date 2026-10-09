@@ -1,0 +1,12 @@
+Pager usage is off.
+INSERT 0 1
+     title      | priority 
+----------------+----------
+ Task từ app cũ | Medium
+(1 row)
+
+ERROR:  invalid input value for enum priority_enum: "Urgent"
+LINE 1: ...sks (project_id, title, priority) SELECT id, 'x', 'Urgent' F...
+                                                             ^
+ERROR:  insert or update on table "tasks" violates foreign key constraint "tasks_assignee_id_fkey"
+DETAIL:  Key (assignee_id)=(fe972b09-9103-4473-9e86-519180733039) is not present in table "users".

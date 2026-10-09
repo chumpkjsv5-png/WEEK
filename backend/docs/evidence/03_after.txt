@@ -1,0 +1,7 @@
+Pager usage is off.
+ id |     title     | priority | due_date | assignee_id 
+----+---------------+----------+----------+-------------
+  1 | Viết báo cáo  | Medium   |          | 
+  2 | Fix bug login | Medium   |          | 
+(2 rows)
+

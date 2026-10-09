@@ -1,0 +1,8 @@
+Pager usage is off.
+     title      | priority |  due_date  
+----------------+----------+------------
+ Viết báo cáo   | High     | 2026-12-31
+ Fix bug login  | Medium   | 
+ Task từ app cũ | Medium   | 
+(3 rows)
+

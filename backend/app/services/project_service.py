@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.models.project_data import Project
 from app.models.user_data import User
 from app.schemas.project_schema import ProjectCreate, ProjectUpdate
+from app.core.exceptions import BadRequestError, NotFoundError
+
 
 
 def list_projects(
@@ -53,16 +55,19 @@ def list_projects(
     return items, total
 
 
-def get_project(db: Session, project_id: int) -> Optional[Project]:
-    return db.query(Project).filter(Project.id == project_id).first()
+def get_project(db: Session, project_id: int) -> Project:
+    project = db.get(Project, project_id)
+    if not project:
+        raise NotFoundError("Project không tồn tại")
+    return project
+
+def _ensure_owner_exists(db: Session, owner_id: Optional[uuid.UUID]) -> None:
+    if owner_id is not None and db.get(User, owner_id) is None:
+        raise BadRequestError("owner_id không tồn tại")
 
 
 def create_project(db: Session, payload: ProjectCreate) -> Project:
-    # Validate owner_id exists if provided
-    if payload.owner_id is not None:
-        owner = db.query(User).filter(User.id == payload.owner_id).first()
-        if not owner:
-            raise ValueError("owner_id không tồn tại")
+    _ensure_owner_exists(db, payload.owner_id)
 
     project = Project(**payload.model_dump())
     db.add(project)
@@ -70,38 +75,19 @@ def create_project(db: Session, payload: ProjectCreate) -> Project:
     db.refresh(project)
     return project
 
+def update_project(db: Session, project_id: int, payload: ProjectUpdate) -> Project:
+    project = get_project(db, project_id)          # tự ném 404
+    _ensure_owner_exists(db, payload.owner_id)
 
-def update_project(
-    db: Session,
-    project_id: int,
-    payload: ProjectUpdate
-) -> Optional[Project]:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        return None
-
-    # Validate owner_id if provided
-    if payload.owner_id is not None:
-        owner = db.query(User).filter(User.id == payload.owner_id).first()
-        if not owner:
-            raise ValueError("owner_id không tồn tại")
-
-    # Update only provided fields
-    update_data = payload.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
+    for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(project, key, value)
 
-    db.add(project)
     db.commit()
     db.refresh(project)
     return project
 
 
-def delete_project(db: Session, project_id: int) -> bool:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        return False
-
+def delete_project(db: Session, project_id: int) -> None:
+    project = get_project(db, project_id)          # tự ném 404
     db.delete(project)
     db.commit()
-    return True

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.project_data import Project
 from app.models.task_data import Task
 from app.models.user_data import User
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.schemas.task_schema import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
@@ -17,6 +18,7 @@ from app.schemas.task_schema import (
     TaskStatus,
     TaskUpdate,
 )
+from app.models.project_member import ProjectMember 
  
 # Xếp hạng priority bằng CASE: chạy đúng dù cột là String hay native ENUM.
 # DESC => High -> Medium -> Low (priority null xếp cuối)
@@ -26,6 +28,8 @@ PRIORITY_RANK = case(
     (Task.priority == TaskPriority.Low.value, 1),
     else_=0,
 )
+
+
  
  
 def _to_db(data: dict) -> dict:
@@ -43,15 +47,29 @@ def _ensure_refs_exist(
     project_id: Optional[int] = None,
     assignee_id: Optional[UUID] = None,
 ) -> None:
-    """Kiểm tra project/assignee tồn tại (db.get dùng identity map nên nhẹ hơn query)."""
     if project_id is not None and db.get(Project, project_id) is None:
-        raise LookupError("project_id không tồn tại")
+        raise NotFoundError("project_id không tồn tại")
     if assignee_id is not None and db.get(User, assignee_id) is None:
-        raise LookupError("assignee_id không tồn tại")
+        raise NotFoundError("assignee_id không tồn tại")
+
+def _ensure_assignee_is_member(
+    db: Session, project_id: Optional[int], assignee_id: Optional[UUID]
+) -> None:
+    if project_id is None or assignee_id is None:
+        return
+    is_member = db.scalar(
+        select(ProjectMember.user_id).where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == assignee_id,
+        )
+    )
+    if is_member is None:
+        raise BadRequestError("assignee_id không phải thành viên của project")
  
  
 def create_task(db: Session, task_data: TaskCreate) -> Task:
     _ensure_refs_exist(db, task_data.project_id, task_data.assignee_id)
+    _ensure_assignee_is_member(db, task_data.project_id, task_data.assignee_id)
  
     new_task = Task(**_to_db(task_data.model_dump()))
     db.add(new_task)
@@ -60,8 +78,11 @@ def create_task(db: Session, task_data: TaskCreate) -> Task:
     return new_task
  
  
-def get_task(db: Session, task_id: int) -> Optional[Task]:
-    return db.get(Task, task_id)
+def get_task(db: Session, task_id: int) -> Task:
+    task = db.get(Task, task_id)
+    if not task:
+        raise NotFoundError("Task không tồn tại")
+    return task
  
  
 def get_tasks(
@@ -122,43 +143,40 @@ def get_tasks(
     }
  
  
-def update_task(db: Session, task_id: int, task_update: TaskUpdate) -> Optional[Task]:
-    task = get_task(db, task_id)
-    if not task:
-        return None
- 
+def update_task(db: Session, task_id: int, task_update: TaskUpdate) -> Task:
+    task = get_task(db, task_id)  # tự ném 404
     update_data = task_update.model_dump(exclude_unset=True)
- 
+
     _ensure_refs_exist(
         db,
         project_id=update_data.get("project_id"),
         assignee_id=update_data.get("assignee_id"),
     )
- 
+    # Chỉ kiểm tra khi đổi assignee_id hoặc project_id
+    if "assignee_id" in update_data or "project_id" in update_data:
+        _ensure_assignee_is_member(
+            db,
+            update_data.get("project_id", task.project_id),
+            update_data.get("assignee_id", task.assignee_id),
+        )
+
     for field, value in _to_db(update_data).items():
         setattr(task, field, value)
- 
+
     db.commit()
     db.refresh(task)
     return task
  
  
-def complete_task(db: Session, task_id: int) -> Optional[Task]:
+def complete_task(db: Session, task_id: int) -> Task:
     task = get_task(db, task_id)
-    if not task:
-        return None
- 
     task.status = TaskStatus.completed.value
     db.commit()
     db.refresh(task)
     return task
- 
- 
-def delete_task(db: Session, task_id: int) -> bool:
+
+
+def delete_task(db: Session, task_id: int) -> None:
     task = get_task(db, task_id)
-    if not task:
-        return False
- 
     db.delete(task)
     db.commit()
-    return True

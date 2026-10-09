@@ -1,0 +1,2 @@
+5bf6a0ec10c8 -> ce8efeadb8fe (head), add priority due_date assignee_id to tasks
+<base> -> 5bf6a0ec10c8, baseline schema (before priority, due_date, assignee_id)

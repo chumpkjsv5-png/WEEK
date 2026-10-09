@@ -71,10 +71,11 @@ pip install -r requirements.txt
 Tạo file `.env` ở thư mục gốc `backend/` với nội dung:
 
 ```
-DATABASE_URL=postgresql://<user>:<password>@<host>/<database>?sslmode=require&channel_binding=require
+DATABASE_URL=postgresql://<user>:<password>@<host>/<database>
+
 ```
 
-Thay các giá trị `<user>`, `<password>`, `<host>`, `<database>` bằng thông tin connection string thật lấy từ Neon Console.
+Thay các giá trị `<user>`, `<password>`, `<host>`, `<database>` 
 
 ### 6. Chạy server
 
@@ -120,6 +121,7 @@ Chi tiết đầy đủ (request/response schema) xem tại `/docs`.
 
 - File `.env` chứa thông tin nhạy cảm, **không commit lên git** (đã có trong `.gitignore`)
 - Bảng `tasks` tự động được tạo khi chạy server lần đầu (`Base.metadata.create_all()`)
+## alembic
 - alembic revision --autogenerate -m "add created_at to project_members"
 - alembic upgrade head
 - alembic downgrade -1
