@@ -1,9 +1,7 @@
 // src/features/tasks/tasksSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as taskApi from "../../api/taskApi";
-
-const toMessage = (err) =>
-  err?.response?.data?.detail?.toString?.() || err?.message || "Có lỗi xảy ra";
+import { getErrorMessage } from "../../utils/apiError";
 
 export const fetchTasks = createAsyncThunk(
   "tasks/fetch",
@@ -18,11 +16,11 @@ export const fetchTasks = createAsyncThunk(
         dueBefore: params.dueBefore,
         dueAfter: params.dueAfter,
         sortByPriority: params.sortByPriority,
-        skip: (params.page - 1) * params.limit, // trang -> skip
+        skip: (params.page - 1) * params.limit, // Chuyển trang thành số bản ghi cần bỏ qua
         limit: params.limit,
-      }); 
+      });
     } catch (err) {
-      return rejectWithValue(toMessage(err));
+      return rejectWithValue(getErrorMessage(err));
     }
   }
 );
@@ -33,7 +31,7 @@ export const addTask = createAsyncThunk(
     try {
       return await taskApi.createTask(payload);
     } catch (err) {
-      return rejectWithValue(toMessage(err));
+      return rejectWithValue(getErrorMessage(err));
     }
   }
 );
@@ -44,7 +42,7 @@ export const editTask = createAsyncThunk(
     try {
       return await taskApi.updateTask(id, payload);
     } catch (err) {
-      return rejectWithValue(toMessage(err));
+      return rejectWithValue(getErrorMessage(err));
     }
   }
 );
@@ -55,7 +53,7 @@ export const finishTask = createAsyncThunk(
     try {
       return await taskApi.completeTask(id);
     } catch (err) {
-      return rejectWithValue(toMessage(err));
+      return rejectWithValue(getErrorMessage(err));
     }
   }
 );
@@ -67,14 +65,14 @@ export const removeTask = createAsyncThunk(
       await taskApi.deleteTask(id);
       return id;
     } catch (err) {
-      return rejectWithValue(toMessage(err));
+      return rejectWithValue(getErrorMessage(err));
     }
   }
 );
 
 const initialState = {
-  items: [], // chỉ chứa task của TRANG HIỆN TẠI
-  total: 0, // tổng số task khớp bộ lọc (từ backend)
+  items: [], // Chỉ chứa task của trang hiện tại
+  total: 0, // Tổng số task khớp bộ lọc từ backend
   status: "idle", // idle | loading | success | error
   error: null,
   filters: {
@@ -96,8 +94,9 @@ const tasksSlice = createSlice({
     setFilter(state, action) {
       const { key, value } = action.payload;
       state.filters[key] = value;
-      state.currentPage = 1; // đổi lọc/sắp xếp thì về trang 1
+      state.currentPage = 1; // Thay đổi bộ lọc thì quay về trang 1
     },
+
     clearFilters(state) {
       state.filters.priorityFilter = "";
       state.filters.assigneeId = "";
@@ -105,30 +104,41 @@ const tasksSlice = createSlice({
       state.filters.dueAfter = "";
       state.currentPage = 1;
     },
+
     setPage(state, action) {
       state.currentPage = action.payload;
     },
   },
-  // Thêm/sửa/hoàn thành/xóa: không sửa items thủ công,
-  // vì thứ tự và tổng số do backend quyết định -> trang sẽ gọi lại fetchTasks.
+
+  // Sau khi thêm/sửa/hoàn thành/xóa task, component gọi lại fetchTasks
+  // để backend quyết định thứ tự và tổng số bản ghi.
   extraReducers: (builder) => {
     builder
       .addCase(fetchTasks.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
+
       .addCase(fetchTasks.fulfilled, (state, action) => {
         state.status = "success";
         state.items = action.payload.items ?? [];
         state.total = action.payload.total ?? 0;
 
-        // Đang ở trang vượt quá tổng số trang (vd vừa xóa task cuối) -> lùi về trang cuối
+        // Nếu trang hiện tại vượt quá trang cuối, chuyển về trang cuối
         const limit = action.meta.arg.limit;
-        const totalPages = Math.max(1, Math.ceil(state.total / limit));
-        if (state.currentPage > totalPages) state.currentPage = totalPages;
+        const totalPages = Math.max(
+          1,
+          Math.ceil(state.total / limit)
+        );
+
+        if (state.currentPage > totalPages) {
+          state.currentPage = totalPages;
+        }
       })
+
       .addCase(fetchTasks.rejected, (state, action) => {
-        if (action.meta.aborted) return; // request cũ bị huỷ, bỏ qua
+        if (action.meta.aborted) return; // Bỏ qua request đã bị hủy
+
         state.status = "error";
         state.error = action.payload ?? action.error.message;
       });
@@ -136,4 +146,5 @@ const tasksSlice = createSlice({
 });
 
 export const { setFilter, clearFilters, setPage } = tasksSlice.actions;
+
 export default tasksSlice.reducer;

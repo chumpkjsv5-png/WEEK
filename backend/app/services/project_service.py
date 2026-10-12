@@ -23,11 +23,11 @@ def list_projects(
 ) -> tuple[list[Project], int]:
     query = db.query(Project)
 
-    if search and search.strip():
-        pattern = f"%{search.strip()}%"
+    if search and search.strip(): # Kiểm tra từ khóa tìm kiếm không rỗng
+        pattern = f"%{search.strip()}%"# Tạo mẫu tìm kiếm, cho phép khớp một phần chuỗi
         query = query.filter(
             or_(
-                func.unaccent(Project.name).ilike(func.unaccent(pattern)),
+                func.unaccent(Project.name).ilike(func.unaccent(pattern)),# Tìm theo tên, không phân biệt dấu tiếng Việt và chữ hoa/chữ thường
                 func.unaccent(Project.description).ilike(func.unaccent(pattern)),
             )
         )

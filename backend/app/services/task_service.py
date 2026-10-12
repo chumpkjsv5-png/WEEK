@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
  
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, or_
 from sqlalchemy.orm import Session
  
 from app.models.project_data import Project
@@ -29,8 +29,6 @@ PRIORITY_RANK = case(
     else_=0,
 )
 
-
- 
  
 def _to_db(data: dict) -> dict:
     """Đổi Enum thành giá trị thường trước khi lưu DB."""
@@ -107,8 +105,20 @@ def get_tasks(
     filters = []
     if project_id is not None:
         filters.append(Task.project_id == project_id)
-    if search:
-        filters.append(Task.title.ilike(f"%{_escape_like(search)}%", escape="\\"))
+    if search and search.strip():
+        pattern = f"%{_escape_like(search.strip())}%"
+        filters.append(
+            or_(
+                func.unaccent(Task.title).ilike(
+                    func.unaccent(pattern),
+                    escape="\\",
+                ),
+                func.unaccent(Task.description).ilike(
+                    func.unaccent(pattern),
+                    escape="\\",
+                ),
+            )
+        )
     if status:
         filters.append(Task.status == status.value)
     if priority:

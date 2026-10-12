@@ -117,10 +117,6 @@ Chi tiết đầy đủ (request/response schema) xem tại `/docs`.
 - Dữ liệu đầu vào sai định dạng → trả về `422 Unprocessable Entity` kèm chi tiết field lỗi
 - Task không tồn tại (edit/delete/complete) → trả về `404 Not Found`
 
-## Ghi chú
-
-- File `.env` chứa thông tin nhạy cảm, **không commit lên git** (đã có trong `.gitignore`)
-- Bảng `tasks` tự động được tạo khi chạy server lần đầu (`Base.metadata.create_all()`)
 ## alembic
 - alembic revision --autogenerate -m "add created_at to project_members"
 - alembic upgrade head

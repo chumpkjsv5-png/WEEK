@@ -47,8 +47,7 @@ export default function ProjectsPage() {
   const debouncedQuery = useDebounce(filters.search, 1000);
   const debouncedOwnerId = useDebounce(filters.ownerId, 500);
 
-  const hasFilters =
-    filters.search || filters.ownerId || filters.createdAfter || filters.createdBefore;
+
 
   // Tải danh sách khi bộ lọc / trang đổi, hoặc sau thêm-sửa-xóa (refreshKey)
   useEffect(() => {
@@ -222,10 +221,6 @@ export default function ProjectsPage() {
       </div>
 
       {actionError && <div className="action-error">{actionError}</div>}
-
-      {status === "success" && total === 0 && hasFilters && (
-        <p className="empty-state">Không tìm thấy project phù hợp.</p>
-      )}
 
       <ProjectList
         status={status}

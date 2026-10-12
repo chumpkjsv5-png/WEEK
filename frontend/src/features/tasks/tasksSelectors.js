@@ -1,7 +1,7 @@
 // src/features/tasks/tasksSelectors.js
 
 // Số task mỗi trang (phải <= MAX_LIMIT = 100 của backend)
-export const ITEMS_PER_PAGE = 5;
+export const ITEMS_PER_PAGE = 20;
 
 export const selectFilters = (s) => s.tasks.filters;
 export const selectStatus = (s) => s.tasks.status;
