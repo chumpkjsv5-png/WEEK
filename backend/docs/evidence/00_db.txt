@@ -1,0 +1,6 @@
+Pager usage is off.
+ current_database 
+------------------
+ mydb
+(1 row)
+
