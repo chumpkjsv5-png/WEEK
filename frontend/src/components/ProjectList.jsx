@@ -1,4 +1,5 @@
 import RowActionsMenu from "./RowActionsMenu";
+import Button from "./Button";
 export default function ProjectList({
   status,
   projects,
@@ -56,14 +57,14 @@ export default function ProjectList({
           <div className="date-col">{formatDate(project.created_at)}</div>
 
           <div className="actions-col">
-            <button
-              type="button"
-              className="action-btn view-btn"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => onSelect(project)}
               title="Xem task của project này"
             >
               Xem
-            </button>
+            </Button>
 
             <RowActionsMenu
               items={[

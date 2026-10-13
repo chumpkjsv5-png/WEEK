@@ -17,8 +17,7 @@ def get_projects(
     params: Annotated[ProjectFilterParams, Query()],
     db: Session = Depends(get_db),
 ):
-    items, total = project_service.list_projects(db, **params.model_dump())
-    return {"items": items, "total": total}
+    return project_service.list_projects(db, **params.model_dump())
 
 
 @router.get("/{project_id}", response_model=ProjectOut)

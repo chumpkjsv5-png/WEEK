@@ -87,20 +87,33 @@
 /* ===== Phần thành viên project ===== */
 :root {
   --member-border: #e5e7eb;
+  --member-text: #111827;
   --member-muted: #6b7280;
-  --member-primary: green;
-  --member-danger: #dc2626;
   --member-bg: #ffffff;
+  --member-bg-hover: #f9fafb;
+
+  --member-primary: #15803d;
+  --member-primary-hover: #166534;
+  --member-primary-soft: #f0fdf4;
+  --member-primary-border: #bbf7d0;
+  --member-ring: rgba(21, 128, 61, 0.25);
+
+  --member-danger: #dc2626;
+  --member-danger-soft: #fef2f2;
+  --member-danger-border: #fecaca;
+
+  --member-control-height: 38px;
 }
 
 /* --- Nút "Thành viên" trong bảng project --- */
 .members-btn {
-  background: #eef2ff;
+  background: var(--member-primary-soft);
   color: var(--member-primary);
-  border: 1px solid #c7d2fe;
+  border: 1px solid var(--member-primary-border);
+  transition: background-color 0.15s ease;
 }
 .members-btn:hover {
-  background: #e0e7ff;
+  background: #dcfce7;
 }
 
 /* --- Drawer (bỏ khối này nếu Main.css đã có, chỉ cần import Main.css) --- */
@@ -138,6 +151,7 @@
 .drawer-header h2 {
   margin: 0;
   font-size: 18px;
+  color: var(--member-text);
 }
 
 .drawer-close {
@@ -149,34 +163,181 @@
   color: var(--member-muted);
 }
 .drawer-close:hover {
-  color: #111827;
+  color: var(--member-text);
 }
 
-/* --- Panel thành viên --- */
+/* --- Khu vực thêm thành viên --- */
 .members-add {
   display: flex;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.members-add select {
+/* Ô tìm kiếm + danh sách gợi ý */
+.members-search {
+  position: relative;
   flex: 1;
   min-width: 0;
-  padding: 8px 10px;
+}
+
+.members-search input {
+  width: 100%;
+  height: var(--member-control-height);
+  box-sizing: border-box;
+  padding: 0 12px;
   border: 1px solid var(--member-border);
   border-radius: 6px;
   background: #fff;
+  color: var(--member-text);
+  font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.members-search input::placeholder {
+  color: #9ca3af;
+}
+.members-search input:focus {
+  outline: none;
+  border-color: var(--member-primary);
+  box-shadow: 0 0 0 3px var(--member-ring);
+}
+.members-search input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
 }
 
-.members-add button {
-  padding: 8px 16px;
+.members-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 260px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  background: var(--member-bg);
+  border: 1px solid var(--member-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.members-search-results li {
+  margin: 0;
+  padding: 0;
+}
+
+.members-search-results li button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--member-text);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.members-search-results li button:hover,
+.members-search-results li button:focus-visible {
+  background: var(--member-primary-soft);
+  outline: none;
+}
+
+.members-search-results li button small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--member-muted);
+  font-size: 12px;
+}
+
+.members-search-results .state-message {
+  padding: 12px;
+  font-size: 13px;
+}
+
+/* Người đã chọn (chip) */
+.members-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: var(--member-control-height);
+  box-sizing: border-box;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--member-primary-border);
+  border-radius: 6px;
+  background: var(--member-primary-soft);
+  color: var(--member-text);
+  font-size: 14px;
+}
+
+.members-selected > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.members-selected small {
+  margin-left: 6px;
+  color: var(--member-muted);
+  font-size: 12px;
+}
+
+.members-selected button {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--member-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.members-selected button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--member-text);
+}
+.members-selected button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Nút "Thêm" (chỉ nhắm nút con trực tiếp, không ảnh hưởng nút trong danh sách gợi ý) */
+.members-add > button {
+  flex-shrink: 0;
+  height: var(--member-control-height);
+  padding: 0 18px;
   border: none;
   border-radius: 6px;
   background: var(--member-primary);
   color: #fff;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
-.members-add button:disabled {
+.members-add > button:hover:not(:disabled) {
+  background: var(--member-primary-hover);
+}
+.members-add > button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--member-ring);
+}
+.members-add > button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -205,6 +366,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  color: var(--member-text);
 }
 
 .members-list small {
@@ -223,11 +385,12 @@
 .members-list button {
   flex-shrink: 0;
   padding: 4px 12px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--member-danger-border);
   border-radius: 6px;
-  background: #fef2f2;
+  background: var(--member-danger-soft);
   color: var(--member-danger);
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 .members-list button:hover:not(:disabled) {
   background: #fee2e2;
@@ -250,8 +413,9 @@
 .action-error {
   margin: 8px 0;
   padding: 8px 12px;
+  border: 1px solid var(--member-danger-border);
   border-radius: 6px;
-  background: #fef2f2;
+  background: var(--member-danger-soft);
   color: var(--member-danger);
   font-size: 14px;
 }

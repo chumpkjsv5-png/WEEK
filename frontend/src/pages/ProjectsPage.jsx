@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -8,6 +8,7 @@ import ProjectForm from "../components/ProjectForm";
 import TaskSearch from "../components/TaskSearch";
 import Pagination from "../components/Pagination";
 import ProjectMembersPanel from "../components/ProjectMembersPanel";
+import Button from "../components/Button";
 import "../css/projects.css";
 
 import {
@@ -15,8 +16,8 @@ import {
   setFilter, setPage,
 } from "../features/projects/projectsSlice";
 import {
-  selectProjects, selectTotal, selectStatus, selectError, selectFilters,
-  selectPage, selectPageSize, selectTotalPages, selectRefreshKey,
+  ITEMS_PER_PAGE, selectProjects, selectTotal, selectStatus, selectError,
+  selectFilters, selectCurrentPage, selectTotalPages,
 } from "../features/projects/projectsSelectors";
 
 export default function ProjectsPage() {
@@ -29,10 +30,8 @@ export default function ProjectsPage() {
   const status = useSelector(selectStatus);
   const error = useSelector(selectError);
   const filters = useSelector(selectFilters);
-  const currentPage = useSelector(selectPage);
-  const pageSize = useSelector(selectPageSize);
+  const currentPage = useSelector(selectCurrentPage);
   const totalPages = useSelector(selectTotalPages);
-  const refreshKey = useSelector(selectRefreshKey);
 
   // --- state UI cục bộ (chỉ trang này dùng) ---
   const [showForm, setShowForm] = useState(false);
@@ -47,27 +46,30 @@ export default function ProjectsPage() {
   const debouncedQuery = useDebounce(filters.search, 1000);
   const debouncedOwnerId = useDebounce(filters.ownerId, 500);
 
-  const hasFilters =
-    filters.search || filters.ownerId || filters.createdAfter || filters.createdBefore;
-
   // Tải danh sách khi bộ lọc / trang đổi, hoặc sau thêm-sửa-xóa (refreshKey)
+  const load = useCallback(
+    () =>
+      dispatch(
+        fetchProjects({
+          search: debouncedQuery,
+          ownerId: debouncedOwnerId,
+          createdAfter: filters.createdAfter,
+          createdBefore: filters.createdBefore,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+      ),
+    [
+      dispatch, debouncedQuery, debouncedOwnerId,
+      filters.createdAfter, filters.createdBefore, currentPage,
+    ]
+  );
+
+  // Đổi lọc hoặc trang -> gọi lại. Huỷ request cũ để tránh kết quả về sai thứ tự.
   useEffect(() => {
-    const promise = dispatch(
-      fetchProjects({
-        search: debouncedQuery,
-        ownerId: debouncedOwnerId,
-        createdAfter: filters.createdAfter,
-        createdBefore: filters.createdBefore,
-        page: currentPage,
-        pageSize,
-      })
-    );
-    return () => promise.abort(); // đổi bộ lọc nhanh thì hủy request cũ
-  }, [
-    dispatch, debouncedQuery, debouncedOwnerId,
-    filters.createdAfter, filters.createdBefore,
-    currentPage, pageSize, refreshKey,
-  ]);
+    const promise = load();
+    return () => promise.abort();
+  }, [load]);
 
   const update = (key) => (value) => dispatch(setFilter({ key, value }));
 
@@ -86,8 +88,12 @@ export default function ProjectsPage() {
     try {
       if (editingProject) {
         await dispatch(editProject({ id: editingProject.id, payload })).unwrap();
+        load();
       } else {
         await dispatch(addProject(payload)).unwrap();
+        // Project mới: về trang 1 (đổi trang sẽ tự gọi lại, đang ở trang 1 thì gọi tay)
+        if (currentPage !== 1) dispatch(setPage(1));
+        else load();
       }
       closeFormWithAnimation();
     } catch (err) {
@@ -135,7 +141,8 @@ export default function ProjectsPage() {
     setActionError("");
     try {
       await dispatch(removeProject(projectId)).unwrap();
-      if (membersProject?.id === projectId) setMembersProject(null); // MỚI: đóng panel nếu đang mở project vừa xóa
+      if (membersProject?.id === projectId) setMembersProject(null);
+      load(); // nếu xóa project cuối của trang, slice tự lùi về trang trước
     } catch (err) {
       setActionError(typeof err === "string" ? err : err.message);
     }
@@ -154,9 +161,7 @@ export default function ProjectsPage() {
     <div className="page">
       <div className="page-header">
         <h1>Projects</h1>
-        <button type="button" className="btn-primary" onClick={openCreateForm}>
-          + New Project
-        </button>
+        <Button icon="+" onClick={openCreateForm}>New Project</Button>
       </div>
 
       {showForm && (
@@ -223,10 +228,6 @@ export default function ProjectsPage() {
 
       {actionError && <div className="action-error">{actionError}</div>}
 
-      {status === "success" && total === 0 && hasFilters && (
-        <p className="empty-state">Không tìm thấy project phù hợp.</p>
-      )}
-
       <ProjectList
         status={status}
         projects={projects}
@@ -240,13 +241,13 @@ export default function ProjectsPage() {
       />
 
       {totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          totalItems={total}
-          itemsPerPage={pageSize}
-        />
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        totalItems={total}
+        itemsPerPage={ITEMS_PER_PAGE}
+      />
       )}
     </div>
   );

@@ -6,6 +6,14 @@ export async function getProjectMembers(projectId, signal) {
   return res.data; // [{ project_id, user_id, user: { id, email, full_name } }]
 }
 
+export async function searchUsersToAdd(projectId, q, signal, limit = 10) {
+  const res = await axiosClient.get(`/projects/${projectId}/members/search`, {
+    params: { q, limit },
+    signal,
+  });
+  return res.data; // [{ id, full_name, email }]
+}
+
 export async function addProjectMember(projectId, userId) {
   const res = await axiosClient.post(`/projects/${projectId}/members`, {
     user_id: userId,
