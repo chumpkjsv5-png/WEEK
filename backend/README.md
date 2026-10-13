@@ -122,6 +122,6 @@ Chi tiết đầy đủ (request/response schema) xem tại `/docs`.
 - File `.env` chứa thông tin nhạy cảm, **không commit lên git** (đã có trong `.gitignore`)
 - Bảng `tasks` tự động được tạo khi chạy server lần đầu (`Base.metadata.create_all()`)
 ## alembic
-- alembic revision --autogenerate -m "add created_at to project_members"
+- alembic revision --autogenerate -m ""
 - alembic upgrade head
 - alembic downgrade -1

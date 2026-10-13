@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import (
     Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint,
+    Index, desc,
 )
 from sqlalchemy.dialects.postgresql import UUID, ENUM as PGEnum
 from sqlalchemy.sql import func
@@ -14,6 +15,10 @@ class Task(Base):
         CheckConstraint(
             "status IN ('pending','in_progress','completed')",
             name="ck_tasks_status",
+        ),
+        Index(
+            "ix_tasks_project_status_created",
+            "project_id", "status", desc("created_at"), desc("id"),
         ),
     )
 

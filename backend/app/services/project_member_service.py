@@ -30,10 +30,7 @@ def list_members(db: Session, project_id: int):
 
 
 def search_users_to_add(db: Session, project_id: int, q: str, limit: int = 10):
-    """Tìm user theo tên/email để thêm vào project.
-
-    Loại các user đã là thành viên của project.
-    """
+    """Tìm user theo tên/email để thêm vào project.Loại các user đã là thành viên của project."""
     _get_project(db, project_id)
 
     q = q.strip()
