@@ -1,16 +1,18 @@
 // src/features/projects/projectsSelectors.js
-import { createSelector } from "@reduxjs/toolkit";
 
-export const selectProjects = (s) => s.projects.items;
-export const selectTotal = (s) => s.projects.total;
+// Số project mỗi trang (phải <= MAX_LIMIT = 100 của backend)
+export const ITEMS_PER_PAGE = 10;
+
+export const selectFilters = (s) => s.projects.filters;
 export const selectStatus = (s) => s.projects.status;
 export const selectError = (s) => s.projects.error;
-export const selectFilters = (s) => s.projects.filters;
-export const selectPage = (s) => s.projects.page;
-export const selectPageSize = (s) => s.projects.pageSize;
-export const selectRefreshKey = (s) => s.projects.refreshKey;
+export const selectCurrentPage = (s) => s.projects.currentPage;
 
-export const selectTotalPages = createSelector(
-  [selectTotal, selectPageSize],
-  (total, pageSize) => Math.max(1, Math.ceil(total / pageSize))
-);
+// Project của trang hiện tại (backend đã cắt sẵn)
+export const selectProjects = (s) => s.projects.items;
+
+// Tổng số project khớp bộ lọc (lấy từ backend, không phải items.length)
+export const selectTotal = (s) => s.projects.total;
+
+export const selectTotalPages = (s) =>
+  Math.max(1, Math.ceil(s.projects.total / ITEMS_PER_PAGE));

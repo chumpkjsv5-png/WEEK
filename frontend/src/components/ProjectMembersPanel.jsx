@@ -2,8 +2,9 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { getUsers } from "../api/userApi";
+import { searchUsersToAdd } from "../api/projectMemberApi";
 import { getErrorMessage } from "../utils/apiError";
+import useDebounce from "../hooks/useDebounce";
 import { fetchMembers, addMember, removeMember } from "../features/projectMembers/projectMembersSlice";
 import {
   selectMembers, selectMembersStatus, selectMembersError,
@@ -17,8 +18,12 @@ export default function ProjectMembersPanel({ project, onClose }) {
   const status = useSelector((s) => selectMembersStatus(s, projectId));
   const error = useSelector((s) => selectMembersError(s, projectId));
 
-  const [users, setUsers] = useState([]);       // chỉ panel này dùng nên để state cục bộ
-  const [selectedUserId, setSelectedUserId] = useState("");
+  // Ô tìm kiếm user: state cục bộ vì chỉ panel này dùng
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState(null);      // null = chưa tìm, [] = không có kết quả
+  const [searching, setSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -28,27 +33,47 @@ export default function ProjectMembersPanel({ project, onClose }) {
     return () => promise.abort();
   }, [dispatch, projectId]);
 
-  // Tải danh sách user để chọn
-  useEffect(() => {
-    const controller = new AbortController();
-    getUsers({}, controller.signal)
-      .then((data) => setUsers(Array.isArray(data) ? data : data.items ?? []))
-      .catch((err) => {
-        if (err.code !== "ERR_CANCELED") setActionError(getErrorMessage(err));
-      });
-    return () => controller.abort();
-  }, []);
+  // Tìm user theo từ khóa đã debounce 500ms, hủy request cũ khi từ khóa đổi
+  const debouncedQuery = useDebounce(query.trim(), 500);
+  const loading = searching || query.trim() !== debouncedQuery; // đang chờ hết delay hoặc đang gọi API
 
-  const memberIds = new Set(members.map((m) => m.user_id));
-  const availableUsers = users.filter((u) => !memberIds.has(u.id));
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setResults(null);
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearching(true);
+    searchUsersToAdd(projectId, debouncedQuery, controller.signal)
+      .then((data) => {
+        setResults(data);
+        setSearching(false);
+      })
+      .catch((err) => {
+        if (err.code === "ERR_CANCELED" || err.name === "CanceledError") return;
+        setActionError(getErrorMessage(err));
+        setSearching(false);
+      });
+
+    return () => controller.abort();
+  }, [debouncedQuery, projectId]);
+
+  function handlePick(user) {
+    setSelectedUser(user);
+    setQuery("");
+    setResults(null);
+    setActionError("");
+  }
 
   async function handleAdd() {
-    if (!selectedUserId) return;
+    if (!selectedUser) return;
     setBusy(true);
     setActionError("");
     try {
-      await dispatch(addMember({ projectId, userId: selectedUserId })).unwrap();
-      setSelectedUserId("");
+      await dispatch(addMember({ projectId, userId: selectedUser.id })).unwrap();
+      setSelectedUser(null);
     } catch (err) {
       setActionError(typeof err === "string" ? err : err.message);
     } finally {
@@ -78,17 +103,50 @@ export default function ProjectMembersPanel({ project, onClose }) {
 
       {/* Thêm thành viên */}
       <div className="members-add">
-        <select
-          value={selectedUserId}
-          onChange={(e) => setSelectedUserId(e.target.value)}
-          disabled={busy}
-        >
-          <option value="">Chọn người để thêm...</option>
-          {availableUsers.map((u) => (
-            <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
-          ))}
-        </select>
-        <button type="button" onClick={handleAdd} disabled={busy || !selectedUserId}>
+        {selectedUser ? (
+          <div className="members-selected">
+            <span>
+              {selectedUser.full_name} <small>{selectedUser.email}</small>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedUser(null)}
+              disabled={busy}
+              title="Chọn người khác"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <div className="members-search">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm theo tên hoặc email..."
+              disabled={busy}
+              autoComplete="off"
+            />
+
+            {query.trim() && (
+              <ul className="members-search-results">
+                {loading && <li className="state-message">Đang tìm...</li>}
+                {!loading && results && results.length === 0 && (
+                  <li className="state-message">Không tìm thấy người phù hợp.</li>
+                )}
+                {!loading && results && results.map((u) => (
+                  <li key={u.id}>
+                    <button type="button" onClick={() => handlePick(u)}>
+                      {u.full_name} <small>{u.email}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <button type="button" onClick={handleAdd} disabled={busy || !selectedUser}>
           Thêm
         </button>
       </div>

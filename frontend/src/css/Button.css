@@ -1,0 +1,101 @@
+/* src/components/Button.css */
+:root {
+  --btn-primary: #15803d;
+  --btn-primary-hover: #166534;
+  --btn-danger: #dc2626;
+  --btn-danger-hover: #b91c1c;
+  --btn-border: #e5e7eb;
+  --btn-text: #111827;
+  --btn-ring: rgba(21, 128, 61, 0.25);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--btn-ring);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Kích thước */
+.btn-md {
+  height: 38px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+.btn-sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* Biến thể */
+.btn-primary {
+  background: var(--btn-primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-hover);
+}
+
+.btn-secondary {
+  background: #fff;
+  border-color: var(--btn-border);
+  color: var(--btn-text);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn-danger {
+  background: var(--btn-danger);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--btn-danger-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--btn-text);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+/* Spinner khi loading */
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

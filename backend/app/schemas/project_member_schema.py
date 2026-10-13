@@ -23,3 +23,10 @@ class MemberOut(BaseModel):
     user_id: UUID
     created_at: datetime
     user: UserBrief
+
+class UserSearchOut(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)

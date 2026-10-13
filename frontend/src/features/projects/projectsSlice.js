@@ -16,8 +16,8 @@ export const fetchProjects = createAsyncThunk(
           owner_id: owner && UUID_RE.test(owner) ? owner : undefined,
           created_after: params.createdAfter || undefined,
           created_before: params.createdBefore || undefined,
-          page: params.page,
-          page_size: params.pageSize,
+          skip: (params.page - 1) * params.limit,
+          limit: params.limit,
         },
         signal
       );
@@ -67,9 +67,7 @@ const initialState = {
   status: "idle", // idle | loading | success | error
   error: null,
   filters: { search: "", ownerId: "", createdAfter: "", createdBefore: "" },
-  page: 1,
-  pageSize: 10,
-  refreshKey: 0, // tăng lên để useEffect tải lại danh sách
+  currentPage: 1,
 };
 
 const projectsSlice = createSlice({
@@ -79,14 +77,14 @@ const projectsSlice = createSlice({
     setFilter(state, action) {
       const { key, value } = action.payload;
       state.filters[key] = value;
-      state.page = 1;
+      state.currentPage = 1;
     },
     clearFilters(state) {
       state.filters = { ...initialState.filters };
-      state.page = 1;
+      state.currentPage = 1;
     },
     setPage(state, action) {
-      state.page = action.payload;
+      state.currentPage = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -96,29 +94,21 @@ const projectsSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchProjects.fulfilled, (state, action) => {
-        state.items = Array.isArray(action.payload.items) ? action.payload.items : [];
-        state.total = action.payload.total ?? 0;
+        const { items, total } = action.payload;
+        state.items = Array.isArray(items) ? items : [];
+        state.total = total ?? 0;
         state.status = "success";
 
-        // Xóa hết task cuối của trang cuối thì lùi về trang cuối hợp lệ
-        const lastPage = Math.max(1, Math.ceil(state.total / state.pageSize));
-        if (state.page > lastPage) state.page = lastPage;
+        // Xóa hết project cuối của trang cuối thì lùi về trang cuối hợp lệ
+        // (currentPage đổi => useEffect ở page tự gọi lại)
+        const limit = action.meta.arg.limit;
+        const lastPage = Math.max(1, Math.ceil(state.total / limit));
+        if (state.currentPage > lastPage) state.currentPage = lastPage;
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         if (action.meta.aborted) return; // request bị hủy do đổi bộ lọc, không phải lỗi
         state.status = "error";
         state.error = action.payload ?? action.error.message;
-      })
-      // Thêm xong về trang 1; thêm/sửa/xóa xong đều yêu cầu tải lại
-      .addCase(addProject.fulfilled, (state) => {
-        state.page = 1;
-        state.refreshKey += 1;
-      })
-      .addCase(editProject.fulfilled, (state) => {
-        state.refreshKey += 1;
-      })
-      .addCase(removeProject.fulfilled, (state) => {
-        state.refreshKey += 1;
       });
   },
 });

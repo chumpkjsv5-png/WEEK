@@ -42,7 +42,7 @@ export default function TaskForm({
 
   // Load danh sách project cho dropdown
   useEffect(() => {
-    getProjects({ page: 1, page_size: 100 })
+    getProjects({ skip: 0, limit: 100 })  
       .then((data) => setProjects(Array.isArray(data.items) ? data.items : []))
       .catch(() => setProjects([]));
   }, []);
