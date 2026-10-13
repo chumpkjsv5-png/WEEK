@@ -108,6 +108,7 @@
 }
 
 .user-info {
+  flex: 1;              /* thêm dòng này: chiếm chỗ trống, đẩy nút đăng xuất sang phải */
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -115,6 +116,9 @@
 }
 
 .user-info strong {
+  overflow: hidden;     /* thêm 3 dòng này: cắt tên dài thay vì tràn */
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   color: #272930;
 }
@@ -125,4 +129,45 @@
   white-space: nowrap;
   font-size: 11px;
   color: #9699a1;
+}
+.user-role {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #70747d;
+}
+
+.logout-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #858993;
+  font-size: 18px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.logout-btn:hover {
+  background: #f4f5f7;
+  color: #22252b;
+}
+/* Icon căn giữa theo cả hai chiều (dùng cho mọi mục menu và nút Đăng nhập) */
+.sidebar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Nút Đăng nhập thẳng hàng với các mục menu phía trên */
+.sidebar-user:has(> .sidebar-item) {
+  padding: 15px 0 5px;
 }
