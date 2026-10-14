@@ -1,5 +1,9 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { logout } from "../features/auth/authSlice";
+import { selectUser } from "../features/auth/authSelectors";
+import { LogIn, LogOut } from "lucide-react";
 
 import "../css/Sidebar.css";
 
@@ -13,12 +17,19 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
-  const navigate = useNavigate();          // ← chuyển vào đây
-  const [active, setActive] = useState("tasks");
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { pathname } = useLocation();
+  const user = useSelector(selectUser);
+
+  // "/" cũng được coi là Home
+  const active = pathname === "/" ? "home" : pathname.split("/")[1];
+
+  // Chữ cái đầu của tên, dùng làm avatar
+  const initial = user?.full_name?.trim()?.[0]?.toUpperCase() ?? "?";
 
   return (
     <aside className="sidebar">
-
       <div className="brand">
         <div className="brand-icon">✓</div>
         <span>TeamHub</span>
@@ -30,10 +41,7 @@ export default function Sidebar() {
             key={item.id}
             type="button"
             className={`sidebar-item ${active === item.id ? "active" : ""}`}
-            onClick={() => {
-              setActive(item.id);          // (xem lưu ý bên dưới)
-              navigate(`/${item.id}`);
-            }}
+            onClick={() => navigate(`/${item.id}`)}
           >
             <span className="sidebar-icon">{item.icon}</span>
             <span>{item.label}</span>
@@ -42,13 +50,32 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-user">
-        <div className="user-avatar">A</div>
-        <div className="user-info">
-          <strong>ABC</strong>
-          <span>ABC@example.com</span>
-        </div>
+        {user ? (
+          <>
+            <div className="user-avatar">{initial}</div>
+            <div className="user-info">
+              <strong>{user.full_name}</strong>
+              <span>{user.email}</span>
+              <small className="user-role">{user.role}</small>
+            </div>
+            <button type="button" className="logout-btn" title="Đăng xuất"
+                    aria-label="Đăng xuất" onClick={() => dispatch(logout())}>
+              <LogOut size={18} />
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="sidebar-item"
+            onClick={() => navigate("/login")}
+          >
+            <span className="sidebar-icon">
+              <LogIn size={18} />
+            </span>
+            <span>Đăng nhập</span>
+          </button>
+        )}
       </div>
-
     </aside>
   );
 }
