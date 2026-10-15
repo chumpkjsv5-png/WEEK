@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
+import UserSelect from "./UserSelect";
 
-export default function ProjectForm({ editingProject, onSubmit, onCancel, submitting }) {
+export default function ProjectForm({
+  editingProject,
+  isAdmin = false,
+  onSubmit,
+  onCancel,
+  submitting,
+}) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [ownerId, setOwnerId] = useState("");
   const [error, setError] = useState("");
+
+  // Chỉ admin đang sửa project mới được thấy và đổi owner
+  const canEditOwner = isAdmin && !!editingProject;
 
   useEffect(() => {
     if (editingProject) {
@@ -29,16 +39,22 @@ export default function ProjectForm({ editingProject, onSubmit, onCancel, submit
 
     setError("");
 
-    onSubmit({
+    const payload = {
       name: name.trim(),
       description: description.trim() || null,
-      owner_id: ownerId.trim() || null,
-    });
+    };
+
+    // Chỉ gửi owner_id khi admin sửa và giá trị thật sự thay đổi.
+    // Gửi thừa thì manager sẽ bị 403 "Chỉ admin mới được đổi chủ sở hữu".
+    if (canEditOwner && ownerId.trim() && ownerId.trim() !== editingProject.owner_id) {
+      payload.owner_id = ownerId.trim();
+    }
+
+    onSubmit(payload);
   }
 
   return (
     <form className="task-form" onSubmit={handleSubmit}>
-
       <div className="form-field">
         <label>Name <span>*</span></label>
         <input
@@ -60,14 +76,13 @@ export default function ProjectForm({ editingProject, onSubmit, onCancel, submit
         />
       </div>
 
-      <div className="form-field">
-        <label>Owner ID (tuỳ chọn)</label>
-        <input
-          value={ownerId}
-          onChange={(e) => setOwnerId(e.target.value)}
-          placeholder="UUID của user, để trống nếu chưa có"
-        />
-      </div>
+      {canEditOwner && (
+        <div className="form-field">
+          <label>Owner</label>
+          <UserSelect value={ownerId} onChange={setOwnerId} />
+          <small>Chỉ admin được đổi chủ sở hữu.</small>
+        </div>
+      )}
 
       {error && <div className="form-error">{error}</div>}
 
@@ -79,7 +94,6 @@ export default function ProjectForm({ editingProject, onSubmit, onCancel, submit
           {submitting ? "Saving..." : editingProject ? "Update Project" : "Create Project"}
         </button>
       </div>
-
     </form>
   );
 }

@@ -28,7 +28,7 @@ export async function createProject(payload) {
 
 export async function updateProject(id, payload) {
   // payload: { name?, description?, owner_id? } - cần ít nhất 1 trường
-  const res = await axiosClient.put(`/projects/${id}`, payload);
+  const res = await axiosClient.patch(`/projects/${id}`, payload);
   return res.data;
 }
 

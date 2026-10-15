@@ -1,4 +1,4 @@
-export default function TaskSearch({ value, onChange }) {
+export default function TaskSearch({ value, onChange,placeholder = "Search...", }) {
   return (
     <div className="task-search">
 
@@ -10,7 +10,7 @@ export default function TaskSearch({ value, onChange }) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search tasks..."
+        placeholder={placeholder}
       />
 
       {value && (

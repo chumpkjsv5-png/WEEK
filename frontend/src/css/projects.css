@@ -265,6 +265,10 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+.filter-owner {
+  min-width: 240px;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

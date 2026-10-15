@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUsers } from "../api/userApi";
+import  {getUser}  from "../api/userApi";
 
 export default function TaskFilters({
   assigneeId,
@@ -12,7 +12,7 @@ export default function TaskFilters({
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    getUsers()
+    getUser()
       .then((data) => setUsers(Array.isArray(data) ? data : data.items ?? []))
       .catch(() => setUsers([]));
   }, []);

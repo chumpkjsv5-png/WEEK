@@ -38,7 +38,7 @@ export async function getTasks({
   }
 
   export async function updateTask(id, payload) {
-    const res = await axiosClient.put(`/tasks/${id}`, payload);
+    const res = await axiosClient.patch(`/tasks/${id}`, payload);
     return res.data;
   }
 
