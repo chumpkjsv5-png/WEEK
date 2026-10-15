@@ -427,3 +427,17 @@
   color: var(--member-muted);
   font-size: 12px;
 }
+
+.form-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #70747d;
+}
+
+.task-form input:disabled,
+.task-form textarea:disabled,
+.task-form select:disabled {
+  background: #f4f5f7;
+  color: #9699a1;
+  cursor: not-allowed;
+}

@@ -1,15 +1,18 @@
+# app/services/task_service.py
 from datetime import date
 from enum import Enum
 from typing import Optional
 from uuid import UUID
- 
+
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
- 
+
+from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
+from app.core.permissions import MEMBER
 from app.models.project_data import Project
+from app.models.project_member import ProjectMember
 from app.models.task_data import Task
 from app.models.user_data import User
-from app.core.exceptions import BadRequestError, NotFoundError
 from app.schemas.task_schema import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
@@ -48,9 +51,10 @@ def _ensure_refs_exist(
     assignee_id: Optional[UUID] = None,
 ) -> None:
     if project_id is not None and db.get(Project, project_id) is None:
-        raise NotFoundError("project_id không tồn tại")
+        raise NotFoundError("project_id không tồn tại", code="PROJECT_NOT_FOUND")
     if assignee_id is not None and db.get(User, assignee_id) is None:
-        raise NotFoundError("assignee_id không tồn tại")
+        raise NotFoundError("assignee_id không tồn tại", code="ASSIGNEE_NOT_FOUND")
+
 
 def _ensure_assignee_is_member(
     db: Session, project_id: Optional[int], assignee_id: Optional[UUID]
@@ -64,7 +68,19 @@ def _ensure_assignee_is_member(
         )
     )
     if is_member is None:
-        raise BadRequestError("assignee_id không phải thành viên của project")
+        raise BadRequestError(
+            "assignee_id không phải thành viên của project",
+            code="ASSIGNEE_NOT_PROJECT_MEMBER",
+        )
+
+
+def _ensure_member_can_touch(task, user: User) -> None:
+    """Member chỉ được thao tác trên task giao cho mình."""
+    if user.role == MEMBER and task.assignee_id != user.id:
+        raise ForbiddenError(
+            "Bạn chỉ được cập nhật task được giao cho mình",
+            code="TASK_NOT_ASSIGNED_TO_YOU",
+        )
  
  
 def create_task(db: Session, task_data: TaskCreate) -> Task:
@@ -81,7 +97,7 @@ def create_task(db: Session, task_data: TaskCreate) -> Task:
 def get_task(db: Session, task_id: int) -> Task:
     task = db.get(Task, task_id)
     if not task:
-        raise NotFoundError("Task không tồn tại")
+        raise NotFoundError("Task không tồn tại", code="TASK_NOT_FOUND")
     return task
  
  
@@ -143,33 +159,23 @@ def get_tasks(
     }
  
  
-def update_task(db: Session, task_id: int, task_update: TaskUpdate) -> Task:
+def update_task(db: Session, task_id: int, task_update: TaskUpdate, user: User) -> Task:
     task = get_task(db, task_id)  # tự ném 404
     update_data = task_update.model_dump(exclude_unset=True)
 
-    _ensure_refs_exist(
-        db,
-        project_id=update_data.get("project_id"),
-        assignee_id=update_data.get("assignee_id"),
-    )
-    # Chỉ kiểm tra khi đổi assignee_id hoặc project_id
-    if "assignee_id" in update_data or "project_id" in update_data:
-        _ensure_assignee_is_member(
-            db,
-            update_data.get("project_id", task.project_id),
-            update_data.get("assignee_id", task.assignee_id),
+    # Quyền: member chỉ sửa task giao cho mình, và chỉ được đổi status
+    _ensure_member_can_touch(task, user)
+    if user.role == MEMBER and set(update_data) - {"status"}:
+        raise ForbiddenError(
+            "Bạn chỉ được đổi trạng thái task",
+            code="TASK_STATUS_ONLY",
         )
 
-    for field, value in _to_db(update_data).items():
-        setattr(task, field, value)
 
-    db.commit()
-    db.refresh(task)
-    return task
- 
- 
-def complete_task(db: Session, task_id: int) -> Task:
+def complete_task(db: Session, task_id: int, user: User) -> Task:
     task = get_task(db, task_id)
+    _ensure_member_can_touch(task, user)
+
     task.status = TaskStatus.completed.value
     db.commit()
     db.refresh(task)

@@ -3,18 +3,31 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models.project_data import Project
 from app.models.project_member import ProjectMember
 from app.models.task_data import Task
 from app.models.user_data import User
 from app.schemas.task_schema import TaskStatus
+from app.core.permissions import ADMIN, MANAGER
+
+
+def _ensure_can_manage_members(project: Project, user: User) -> None:
+    """Admin quản lý mọi project, manager chỉ project mình sở hữu."""
+    if user.role == ADMIN:
+        return
+    if user.role == MANAGER and project.owner_id == user.id:
+        return
+    raise ForbiddenError(
+        "Bạn chỉ được quản lý thành viên của project do mình sở hữu",
+        code="PROJECT_MEMBER_FORBIDDEN",
+    )
 
 
 def _get_project(db: Session, project_id: int) -> Project:
     project = db.get(Project, project_id)
     if not project:
-        raise NotFoundError("Project không tồn tại")
+        raise NotFoundError("Project không tồn tại", code="PROJECT_NOT_FOUND")
     return project
 
 
@@ -29,10 +42,10 @@ def list_members(db: Session, project_id: int):
     return db.scalars(stmt).all()
 
 
-def search_users_to_add(db: Session, project_id: int, q: str, limit: int = 10):
+def search_users_to_add(db: Session, project_id: int, q: str, user: User, limit: int =10):
     """Tìm user theo tên/email để thêm vào project.Loại các user đã là thành viên của project."""
-    _get_project(db, project_id)
-
+    project = _get_project(db, project_id)
+    _ensure_can_manage_members(project, user)
     q = q.strip()
     if not q:
         return []
@@ -60,12 +73,16 @@ def search_users_to_add(db: Session, project_id: int, q: str, limit: int = 10):
     return db.scalars(stmt).all()
 
 
-def add_member(db: Session, project_id: int, user_id):
-    _get_project(db, project_id)
+def add_member(db: Session, project_id: int, user_id, user: User):
+    project = _get_project(db, project_id)
+    _ensure_can_manage_members(project, user)
     if not db.get(User, user_id):
-        raise NotFoundError("User không tồn tại")
+        raise NotFoundError("User không tồn tại", code="USER_NOT_FOUND")
     if db.get(ProjectMember, (project_id, user_id)):
-        raise ConflictError("User đã là thành viên của project")
+        raise ConflictError(
+            "User đã là thành viên của project",
+            code="MEMBER_ALREADY_EXISTS",
+        )
 
     member = ProjectMember(project_id=project_id, user_id=user_id)
     db.add(member)
@@ -73,19 +90,29 @@ def add_member(db: Session, project_id: int, user_id):
         db.commit()
     except IntegrityError:  # phòng hai request thêm cùng lúc
         db.rollback()
-        raise ConflictError("User đã là thành viên của project")
+        raise ConflictError(
+            "User đã là thành viên của project",
+            code="MEMBER_ALREADY_EXISTS",
+        )
     db.refresh(member)
     return member
 
 
-def remove_member(db: Session, project_id: int, user_id) -> None:
+def remove_member(db: Session, project_id: int, user_id, user: User) -> None:
     project = _get_project(db, project_id)
+    _ensure_can_manage_members(project, user)
     if project.owner_id == user_id:
-        raise ConflictError("Không thể gỡ chủ sở hữu khỏi project")
+        raise ConflictError(
+            "Không thể gỡ chủ sở hữu khỏi project",
+            code="CANNOT_REMOVE_OWNER",
+        )
 
     member = db.get(ProjectMember, (project_id, user_id))
     if not member:
-        raise NotFoundError("User không phải thành viên của project")
+        raise NotFoundError(
+            "User không phải thành viên của project",
+            code="MEMBER_NOT_FOUND",
+        )
 
     open_tasks = db.scalar(
         select(func.count())
@@ -99,7 +126,8 @@ def remove_member(db: Session, project_id: int, user_id) -> None:
     if open_tasks:
         raise ConflictError(
             f"Thành viên còn {open_tasks} task chưa hoàn thành, "
-            "hãy hoàn thành hoặc giao lại trước khi gỡ"
+            "hãy hoàn thành hoặc giao lại trước khi gỡ",
+            code="MEMBER_HAS_OPEN_TASKS",
         )
 
     db.delete(member)

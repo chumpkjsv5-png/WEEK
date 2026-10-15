@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+
 
 from app.database import Base, engine
 
@@ -60,10 +62,26 @@ def health_check():
         "status": "ok"
     }
 
+@app.get("/boom")
+def boom():
+    raise RuntimeError("secret detail")
 
-@app.exception_handler(AppError)
-async def app_error_handler(request: Request, exc: AppError):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+logger = logging.getLogger(__name__)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Stack trace chỉ ghi vào log server, không trả ra client
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "Đã xảy ra lỗi hệ thống",
+            }
+        },
+    )
 
 # Include router Task
 app.include_router(task_router.router)

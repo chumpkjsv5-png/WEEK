@@ -12,9 +12,15 @@ def authenticate(db: Session, email: str, password: str) -> User:
 
     # Cùng một thông báo cho sai email và sai mật khẩu
     if user is None or not verify_password(password, user.password_hash):
-        raise UnauthorizedError("Email hoặc mật khẩu không đúng")
+        raise UnauthorizedError(
+            "Email hoặc mật khẩu không đúng",
+            code="INVALID_CREDENTIALS",
+        )
     if not user.is_active:
-        raise ForbiddenError("Tài khoản đã bị vô hiệu hoá")
+        raise ForbiddenError(
+            "Tài khoản đã bị vô hiệu hoá",
+            code="ACCOUNT_DISABLED",
+        )
     return user
 
 

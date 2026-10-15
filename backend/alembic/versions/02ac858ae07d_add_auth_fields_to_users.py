@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.add_column('users', sa.Column('role', sa.String(length=20), server_default='member', nullable=False))
     op.add_column('users', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
     op.add_column('users', sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True))
-
+    """backfill"""
     op.execute("UPDATE users SET password_hash = '!' WHERE password_hash IS NULL")
     op.alter_column('users', 'password_hash', nullable=False)
 
