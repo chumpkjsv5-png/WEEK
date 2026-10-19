@@ -9,9 +9,11 @@ export default function TaskHeader({ onNewTask, projectId }) {
         {projectId && <span className="task-header-project"> — Project #{projectId}</span>}
       </h1>
 
-      <Button icon="+" onClick={onNewTask}>
-        New Task
-      </Button>
+      {onNewTask && (
+        <Button icon="+" onClick={onNewTask}>
+          New Task
+        </Button>
+      )}
     </header>
   );
 }

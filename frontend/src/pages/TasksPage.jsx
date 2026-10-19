@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { TASK_PRIORITY_OPTIONS } from "../constants/taskPriority";
 import TaskHeader from "../components/TaskHeader";
 import TaskTabs from "../components/TaskTabs";
-import TaskSearch from "../components/TaskSearch";
+import Search from "../components/Search";
 import TaskFilters from "../components/TaskFilters";
 import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
@@ -21,6 +21,7 @@ import {
   ITEMS_PER_PAGE, selectFilters, selectStatus, selectError,
   selectCurrentPage, selectTotalPages, selectTasks, selectTotal,
 } from "../features/tasks/tasksSelectors";
+import { selectUser, selectRole } from "../features/auth/authSelectors";
 
 export default function TasksPage() {
   const dispatch = useDispatch();
@@ -35,6 +36,12 @@ export default function TasksPage() {
   const totalPages = useSelector(selectTotalPages);
   const tasks = useSelector(selectTasks); // task của trang hiện tại
   const total = useSelector(selectTotal); // tổng số task khớp bộ lọc
+
+  // --- đăng nhập và quyền ---
+  const user = useSelector(selectUser);
+  const role = useSelector(selectRole);
+  const isMember = role === "member";
+  const canManage = ["admin", "manager"].includes(role);
 
   // --- state UI cục bộ ---
   const [editingTask, setEditingTask] = useState(null);
@@ -70,34 +77,38 @@ export default function TasksPage() {
   );
 
   // Đổi lọc, sắp xếp hoặc trang -> gọi lại. Huỷ request cũ để tránh kết quả về sai thứ tự.
-  useEffect(() => { 
+  useEffect(() => {
     const promise = load();
     return () => promise.abort();
   }, [load]);
 
   const update = (key) => (value) => dispatch(setFilter({ key, value }));
 
-  async function handleSubmit(payload) {
-    setSubmitting(true);
-    setActionError("");
-    try {
-      if (editingTask) {
-        await dispatch(editTask({ id: editingTask.id, payload })).unwrap();
-        load();
-      } else {
-        await dispatch(addTask(payload)).unwrap();
-        // Task mới: về trang 1 (đổi trang sẽ tự gọi lại, đang ở trang 1 thì gọi tay)
-        if (currentPage !== 1) dispatch(setPage(1));
-        else load();
-      }
-      setEditingTask(null);
-      setShowForm(false);
-    } catch (err) {
-      setActionError(typeof err === "string" ? err : err.message);
-    } finally {
-      setSubmitting(false);
+  const errMsg = (err) => (typeof err === "string" ? err : err?.message ?? "Có lỗi xảy ra");
+
+async function handleSubmit(payload) {
+  setSubmitting(true);
+  setActionError("");
+  try {
+    if (editingTask) {
+      // member chỉ được đổi status, các field khác backend sẽ trả 403
+      const body = isMember ? { status: payload.status } : payload;
+      await dispatch(editTask({ id: editingTask.id, payload: body })).unwrap();
+      load();
+    } else {
+      await dispatch(addTask(payload)).unwrap();
+      // Task mới: về trang 1 (đổi trang sẽ tự gọi lại, đang ở trang 1 thì gọi tay)
+      if (currentPage !== 1) dispatch(setPage(1));
+      else load();
     }
+    setEditingTask(null);
+    setShowForm(false);
+  } catch (err) {
+    setActionError(errMsg(err));
+  } finally {
+    setSubmitting(false);
   }
+}
 
   async function handleComplete(id) {
     setActionError("");
@@ -105,7 +116,7 @@ export default function TasksPage() {
       await dispatch(finishTask(id)).unwrap();
       load(); // task có thể biến mất khỏi danh sách nếu đang lọc theo status
     } catch (err) {
-      setActionError(typeof err === "string" ? err : err.message);
+      setActionError(errMsg(err));
     }
   }
 
@@ -116,7 +127,7 @@ export default function TasksPage() {
       await dispatch(removeTask(id)).unwrap();
       load(); // nếu xóa task cuối của trang, slice tự lùi về trang trước
     } catch (err) {
-      setActionError(typeof err === "string" ? err : err.message);
+      setActionError(errMsg(err));
     }
   }
 
@@ -132,6 +143,8 @@ export default function TasksPage() {
   }
 
   function openEditForm(task) {
+    // member chỉ mở form với task giao cho mình (backend vẫn chặn thật)
+    if (!canManage && task.assignee_id !== user?.id) return;
     setEditingTask(task);
     setActionError("");
     setShowForm(true);
@@ -146,11 +159,17 @@ export default function TasksPage() {
 
   return (
     <div className="page">
-      <TaskHeader onNewTask={openCreateForm} projectId={projectId} />
+      <TaskHeader
+        onNewTask={canManage ? openCreateForm : undefined}
+        projectId={projectId}
+      />
 
       <TaskTabs value={filters.statusFilter} onChange={update("statusFilter")} />
 
-      <TaskSearch value={filters.search} onChange={update("search")} />
+      <Search 
+        value={filters.search} 
+        onChange={update("search")}
+        placeholder="Search tasks..." />
 
       <TaskFilters
         assigneeId={filters.assigneeId}
@@ -188,9 +207,11 @@ export default function TasksPage() {
         status={status}
         tasks={tasks}
         error={error}
+        currentUserId={user?.id}
+        canManage={canManage}
         onEdit={openEditForm}
         onComplete={handleComplete}
-        onDelete={handleDelete}
+        onDelete={canManage ? handleDelete : undefined}
       />
 
       {totalPages > 1 && (
@@ -215,6 +236,7 @@ export default function TasksPage() {
               <TaskForm
                 editingTask={editingTask}
                 defaultProjectId={projectId}
+                statusOnly={isMember}
                 onSubmit={handleSubmit}
                 onCancel={closeForm}
                 submitting={submitting}

@@ -19,7 +19,6 @@ class ProjectCreate(BaseModel):
 
     name: str = Field(min_length=1, max_length=150)
     description: Optional[str] = Field(default=None, max_length=1000)
-    owner_id: Optional[uuid.UUID] = None
 
 
 class ProjectUpdate(BaseModel):

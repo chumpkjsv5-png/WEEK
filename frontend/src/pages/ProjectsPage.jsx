@@ -5,9 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import useDebounce from "../hooks/useDebounce";
 import ProjectList from "../components/ProjectList";
 import ProjectForm from "../components/ProjectForm";
-import TaskSearch from "../components/TaskSearch";
+import Search from "../components/Search";
 import Pagination from "../components/Pagination";
 import ProjectMembersPanel from "../components/ProjectMembersPanel";
+import UserSelect from "../components/UserSelect";
 import Button from "../components/Button";
 import "../css/projects.css";
 
@@ -19,6 +20,7 @@ import {
   ITEMS_PER_PAGE, selectProjects, selectTotal, selectStatus, selectError,
   selectFilters, selectCurrentPage, selectTotalPages,
 } from "../features/projects/projectsSelectors";
+import { selectUser, selectRole } from "../features/auth/authSelectors";
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
@@ -33,20 +35,32 @@ export default function ProjectsPage() {
   const currentPage = useSelector(selectCurrentPage);
   const totalPages = useSelector(selectTotalPages);
 
-  // --- state UI cục bộ (chỉ trang này dùng) ---
+  // --- đăng nhập và quyền ---
+  const user = useSelector(selectUser);
+  const role = useSelector(selectRole);
+  const isAdmin = role === "admin";
+  const canCreate = ["admin", "manager"].includes(role);
+  // admin sửa mọi project, manager chỉ sửa project mình sở hữu
+  const canEditProject = (p) =>
+    isAdmin || (role === "manager" && p.owner_id === user?.id);
+  const canManageProject = (p) =>
+  !!p && (isAdmin || (role === "manager" && p.owner_id === user?.id)); //admin and manager và là chủ project
+
+  // --- state UI cục bộ ---
   const [showForm, setShowForm] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [actionError, setActionError] = useState("");
   const [editingProject, setEditingProject] = useState(null);
-  const [checkedProjects, setCheckedProjects] = useState(new Set());
-  const [membersProject, setMembersProject] = useState(null); // MỚI: project đang mở panel thành viên
+  const [membersProject, setMembersProject] = useState(null);
 
   const debouncedQuery = useDebounce(filters.search, 1000);
   const debouncedOwnerId = useDebounce(filters.ownerId, 500);
 
-  // Tải danh sách khi bộ lọc / trang đổi, hoặc sau thêm-sửa-xóa (refreshKey)
+  const errMsg = (err) =>
+    typeof err === "string" ? err : err?.message ?? "Có lỗi xảy ra";
+
   const load = useCallback(
     () =>
       dispatch(
@@ -91,13 +105,13 @@ export default function ProjectsPage() {
         load();
       } else {
         await dispatch(addProject(payload)).unwrap();
-        // Project mới: về trang 1 (đổi trang sẽ tự gọi lại, đang ở trang 1 thì gọi tay)
+        // Project mới: về trang 1 (đang ở trang 1 thì gọi tay)
         if (currentPage !== 1) dispatch(setPage(1));
         else load();
       }
       closeFormWithAnimation();
     } catch (err) {
-      setSubmitError(typeof err === "string" ? err : err.message);
+      setSubmitError(errMsg(err));
     } finally {
       setSubmitting(false);
     }
@@ -107,13 +121,6 @@ export default function ProjectsPage() {
     closeFormWithAnimation();
   }
 
-  function handleCheckProject(projectId) {
-    const next = new Set(checkedProjects);
-    if (next.has(projectId)) next.delete(projectId);
-    else next.add(projectId);
-    setCheckedProjects(next);
-  }
-
   function openCreateForm() {
     setEditingProject(null);
     setSubmitError("");
@@ -121,12 +128,12 @@ export default function ProjectsPage() {
   }
 
   function openEditForm(project) {
+    if (!canEditProject(project)) return; // backend vẫn chặn thật
     setEditingProject(project);
     setSubmitError("");
     setShowForm(true);
   }
 
-  // MỚI
   function openMembers(project) {
     setActionError("");
     setMembersProject(project);
@@ -142,9 +149,9 @@ export default function ProjectsPage() {
     try {
       await dispatch(removeProject(projectId)).unwrap();
       if (membersProject?.id === projectId) setMembersProject(null);
-      load(); // nếu xóa project cuối của trang, slice tự lùi về trang trước
+      load();
     } catch (err) {
-      setActionError(typeof err === "string" ? err : err.message);
+      setActionError(errMsg(err));
     }
   }
 
@@ -161,7 +168,9 @@ export default function ProjectsPage() {
     <div className="page">
       <div className="page-header">
         <h1>Projects</h1>
-        <Button icon="+" onClick={openCreateForm}>New Project</Button>
+        {canCreate && (
+          <Button icon="+" onClick={openCreateForm}>New Project</Button>
+        )}
       </div>
 
       {showForm && (
@@ -175,6 +184,7 @@ export default function ProjectsPage() {
             <h2>{editingProject ? "Sửa Project" : "Tạo Project Mới"}</h2>
             <ProjectForm
               editingProject={editingProject}
+              isAdmin={isAdmin}
               onSubmit={handleSubmit}
               onCancel={handleCancel}
               submitting={submitting}
@@ -184,20 +194,23 @@ export default function ProjectsPage() {
         </>
       )}
 
-      {/* MỚI: drawer thành viên, dùng lại class của TasksPage để giữ nguyên giao diện */}
       {membersProject && (
         <>
           <div className="drawer-overlay" onClick={closeMembers} />
           <aside className="task-drawer">
             <div className="drawer-content">
-              <ProjectMembersPanel project={membersProject} onClose={closeMembers} />
-            </div>
+              <ProjectMembersPanel
+                project={membersProject}
+                canManage={canManageProject(membersProject)}
+                onClose={closeMembers}
+              />
+            </div>  
           </aside>
         </>
       )}
 
       <div className="project-search">
-        <TaskSearch
+        <Search 
           value={filters.search}
           onChange={update("search")}
           placeholder="Search projects..."
@@ -205,13 +218,13 @@ export default function ProjectsPage() {
       </div>
 
       <div className="project-filters">
-        <input
-          type="text"
-          placeholder="Owner ID"
-          value={filters.ownerId}
-          onChange={(e) => update("ownerId")(e.target.value)}
-          className="filter-input"
-        />
+        <div className="filter-owner">
+          <UserSelect
+            value={filters.ownerId}
+            onChange={update("ownerId")}
+            placeholder="Lọc theo chủ sở hữu..."
+          />
+        </div>
         <input
           type="date"
           value={filters.createdAfter}
@@ -232,22 +245,22 @@ export default function ProjectsPage() {
         status={status}
         projects={projects}
         error={error}
-        checkedProjects={checkedProjects}
-        onCheckProject={handleCheckProject}
+        canEditProject={canManageProject}
+        canDelete={canManageProject}
         onSelect={handleSelectProject}
         onEdit={openEditForm}
         onDelete={handleDelete}
-        onMembers={openMembers}   // MỚI
+        onMembers={openMembers}
       />
 
       {totalPages > 1 && (
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        totalItems={total}
-        itemsPerPage={ITEMS_PER_PAGE}
-      />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          totalItems={total}
+          itemsPerPage={ITEMS_PER_PAGE}
+        />
       )}
     </div>
   );

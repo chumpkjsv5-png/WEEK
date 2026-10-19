@@ -17,7 +17,8 @@ import {
 
 export default function TaskForm({
   editingTask,
-  defaultProjectId,   // truyền từ component cha nếu đang ở màn "task của 1 project cụ thể"
+  defaultProjectId,
+  statusOnly = false,
   onSubmit,
   onCancel,
   submitting,
@@ -42,7 +43,7 @@ export default function TaskForm({
 
   // Load danh sách project cho dropdown
   useEffect(() => {
-    getProjects({ skip: 0, limit: 100 })  
+    getProjects({ skip: 0, limit: 100 })
       .then((data) => setProjects(Array.isArray(data.items) ? data.items : []))
       .catch(() => setProjects([]));
   }, []);
@@ -116,11 +117,21 @@ export default function TaskForm({
 
   return (
     <form className="task-form" onSubmit={handleSubmit}>
+      {statusOnly && (
+        <p className="form-hint">
+          Bạn chỉ có thể thay đổi trạng thái của task này.
+        </p>
+      )}
+
       <div className="form-field">
         <label>
           Project <span>*</span>
         </label>
-        <select value={projectId} onChange={handleProjectChange}>
+        <select
+          value={projectId}
+          onChange={handleProjectChange}
+          disabled={statusOnly}
+        >
           <option value="">-- Chọn project --</option>
           {projects.map((project) => (
             <option key={project.id} value={project.id}>
@@ -139,7 +150,8 @@ export default function TaskForm({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Design homepage"
           maxLength={200}
-          autoFocus
+          autoFocus={!statusOnly}
+          disabled={statusOnly}
         />
       </div>
 
@@ -150,14 +162,20 @@ export default function TaskForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Create the main homepage for the project..."
           rows={4}
+          disabled={statusOnly}
         />
       </div>
 
+      {/* Status: ô duy nhất member được sửa, KHÔNG disable */}
       <div className="form-field">
         <label>
           Status <span>*</span>
         </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          autoFocus={statusOnly}
+        >
           {TASK_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -170,7 +188,11 @@ export default function TaskForm({
         <label>
           Priority <span>*</span>
         </label>
-        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+        <select
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          disabled={statusOnly}
+        >
           {TASK_PRIORITY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -184,7 +206,7 @@ export default function TaskForm({
         <select
           value={assigneeId}
           onChange={(e) => setAssigneeId(e.target.value)}
-          disabled={!pid || membersStatus === "loading"}
+          disabled={statusOnly || !pid || membersStatus === "loading"}
         >
           <option value="">
             {!pid
@@ -223,6 +245,7 @@ export default function TaskForm({
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
+          disabled={statusOnly}
         />
       </div>
 

@@ -1,0 +1,6 @@
+id,password_hash,role,is_active,updated_at
+6f5f99b1-240b-4824-a301-4a589c79623b,"$argon2id$v=19$m=65536,t=3,p=4$83KHTuf31Z4rkz5EHSP8ew$keQ3C+5h4qJirpUV60JaXwpv/tJgXcVADkytUt4qNQU",member,t,2026-10-13 11:37:56.813257
+72518656-c231-4ec9-a116-1e65d8d2b780,"$argon2id$v=19$m=65536,t=3,p=4$77cEn5B1uMlGEOEeV+d9mA$spjptjYJLI4uAmVMB+1XkF3mjpLffVjJMChDi9qtHzI",member,t,2026-10-13 11:37:56.813257
+a44ff84f-b1ce-4fd0-8e23-5a4ec9a5766c,"$argon2id$v=19$m=65536,t=3,p=4$ljU8rQ0N7X6N610TvM5vVQ$OhzciC70citt+aQHdflJyewlw5om/jrnH3c2vOYMlsg",member,t,2026-10-13 11:37:56.813257
+ac6452e2-093e-457b-b193-671b90cb13ba,"$argon2id$v=19$m=65536,t=3,p=4$UjxneUAJ/vw3lxzLHvRAGw$7DyE4+y5VBpp0kYr3YOgHWEO/HjcxLHLg9IA0DgqdL8",member,t,2026-10-13 11:37:56.813257
+d80a9857-73e7-406e-ae4e-1bf6f98e1c27,"$argon2id$v=19$m=65536,t=3,p=4$4U9E0wks7A+N6xXNk47DYw$uruhc5ikfDB3G1K41UuLB184WZwUtVJnvCUKy2kX1BE",admin,t,2026-10-13 11:37:56.813257

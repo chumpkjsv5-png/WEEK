@@ -6,8 +6,10 @@ import { TASK_PRIORITY_LABEL } from "../constants/taskPriority";
 
 export default function TaskList({
   status,
-  tasks,
+  tasks = [],
   error,
+  currentUserId,
+  canManage = false,
   onEdit,
   onComplete,
   onDelete,
@@ -38,62 +40,74 @@ export default function TaskList({
         <div>Actions</div>
       </div>
 
-      {tasks.map((task) => (
-        <div className="task-table-row" key={task.id}>
-          <div className="task-information">
-            <span className="task-title">{task.title}</span>
+      {tasks.map((task) => {
+        // admin/manager: mọi task. member: chỉ task giao cho mình
+        const canTouch =
+          canManage || (!!currentUserId && task.assignee_id === currentUserId);
 
-            {task.description && (
-              <span className="task-description">{task.description}</span>
-            )}
+        return (
+          <div className="task-table-row" key={task.id}>
+            <div className="task-information">
+              <span className="task-title">{task.title}</span>
+
+              {task.description && (
+                <span className="task-description">{task.description}</span>
+              )}
+            </div>
+
+            <div>
+              <span className={`status-badge status-${task.status}`}>
+                {TASK_STATUS_LABEL[task.status] || task.status}
+              </span>
+            </div>
+
+            <div>
+              <span className={`priority-badge priority-${task.priority}`}>
+                {TASK_PRIORITY_LABEL[task.priority] || task.priority}
+              </span>
+            </div>
+
+            <div className="task-due-date">{task.due_date || "—"}</div>
+
+            <div className="task-actions">
+              {canTouch &&
+                onComplete &&
+                task.status !== TASK_STATUS.COMPLETED && (
+                  <button
+                    type="button"
+                    className="action-button complete"
+                    onClick={() => onComplete(task.id)}
+                    title="Hoàn thành"
+                  >
+                    ✓
+                  </button>
+                )}
+
+              {canTouch && onEdit && (
+                <button
+                  type="button"
+                  className="action-button edit"
+                  onClick={() => onEdit(task)}
+                  title="Sửa"
+                >
+                  Sửa
+                </button>
+              )}
+
+              {onDelete && (
+                <button
+                  type="button"
+                  className="action-button delete"
+                  onClick={() => onDelete(task.id)}
+                  title="Xoá"
+                >
+                  Xoá
+                </button>
+              )}
+            </div>
           </div>
-
-          <div>
-            <span className={`status-badge status-${task.status}`}>
-              {TASK_STATUS_LABEL[task.status] || task.status}
-            </span>
-          </div>
-
-          <div>
-            <span className={`priority-badge priority-${task.priority}`}>
-              {TASK_PRIORITY_LABEL[task.priority] || task.priority}
-            </span>
-          </div>
-
-          <div className="task-due-date">{task.due_date || "—"}</div>
-
-          <div className="task-actions">
-            {task.status !== TASK_STATUS.COMPLETED && (
-              <button
-                type="button"
-                className="action-button complete"
-                onClick={() => onComplete(task.id)}
-                title="Hoàn thành"
-              >
-                ✓
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="action-button edit"
-              onClick={() => onEdit(task)}
-              title="Sửa"
-            >
-              Sửa
-            </button>
-
-            <button
-              type="button"
-              className="action-button delete"
-              onClick={() => onDelete(task.id)}
-              title="Xoá"
-            >
-              Xoá
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

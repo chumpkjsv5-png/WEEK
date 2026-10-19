@@ -1,3 +1,4 @@
+# app/services/project_service.py
 import uuid
 from datetime import date, datetime, time, timedelta
 from typing import Optional
@@ -5,8 +6,10 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
+from app.core.permissions import ADMIN, MANAGER
 from app.models.project_data import Project
+from app.models.project_member import ProjectMember
 from app.models.user_data import User
 from app.schemas.project_schema import (
     DEFAULT_LIMIT,
@@ -14,6 +17,22 @@ from app.schemas.project_schema import (
     ProjectCreate,
     ProjectUpdate,
 )
+def _ensure_can_modify(
+    project: Project,
+    user: User,
+    action: str = "thao tác với",
+) -> None:
+    """Admin quản lý mọi project, manager chỉ quản lý project mình sở hữu."""
+    if user.role == ADMIN:
+        return
+
+    if user.role == MANAGER and project.owner_id == user.id:
+        return
+
+    raise ForbiddenError(
+        f"Bạn không có quyền {action} project do người khác sở hữu",
+        code="PROJECT_FORBIDDEN",
+    )
 
 
 def _escape_like(text: str) -> str:
@@ -23,8 +42,7 @@ def _escape_like(text: str) -> str:
 
 def _ensure_owner_exists(db: Session, owner_id: Optional[uuid.UUID]) -> None:
     if owner_id is not None and db.get(User, owner_id) is None:
-        raise BadRequestError("owner_id không tồn tại")
-
+        raise BadRequestError("owner_id không tồn tại", code="OWNER_NOT_FOUND")
 
 def list_projects(
     db: Session,
@@ -38,14 +56,15 @@ def list_projects(
     # Chốt chặn cho trường hợp gọi từ nơi không qua validation của router
     skip = max(skip, 0)
     limit = min(max(limit, 1), MAX_LIMIT)
+    """func.unaccent(...)	Bỏ dấu trong chuỗi"""
 
     filters = []
     if search and search.strip():
         pattern = f"%{_escape_like(search.strip())}%"
         filters.append(
             or_(
-                func.unaccent(Project.name).ilike(
-                    func.unaccent(pattern), escape="\\"
+                func.unaccent(Project.name).ilike( 
+                    func.unaccent(pattern), escape="\\" 
                 ),
                 func.unaccent(Project.description).ilike(
                     func.unaccent(pattern), escape="\\"
@@ -89,25 +108,38 @@ def list_projects(
 def get_project(db: Session, project_id: int) -> Project:
     project = db.get(Project, project_id)
     if not project:
-        raise NotFoundError("Project không tồn tại")
+        raise NotFoundError("Project không tồn tại", code="PROJECT_NOT_FOUND")
     return project
 
 
-def create_project(db: Session, payload: ProjectCreate) -> Project:
-    _ensure_owner_exists(db, payload.owner_id)
 
-    project = Project(**payload.model_dump())
+def create_project(db: Session, payload: ProjectCreate, user: User) -> Project:
+    project = Project(**payload.model_dump(), owner_id=user.id)
     db.add(project)
+    db.flush()  # lấy project.id
+
+    # Owner tự động là thành viên, để chọn được làm assignee
+    db.add(ProjectMember(project_id=project.id, user_id=user.id))
     db.commit()
     db.refresh(project)
     return project
 
 
-def update_project(db: Session, project_id: int, payload: ProjectUpdate) -> Project:
-    project = get_project(db, project_id)  # tự ném 404
+def update_project(
+    db: Session, project_id: int, payload: ProjectUpdate, user: User
+) -> Project:
+    project = get_project(db, project_id)  # 404 trước
+    _ensure_can_modify(project, user, "chỉnh sửa")  # rồi 403
+
     update_data = payload.model_dump(exclude_unset=True)
 
-    _ensure_owner_exists(db, update_data.get("owner_id"))
+    if "owner_id" in update_data:
+        if user.role != ADMIN:
+            raise ForbiddenError(
+                "Chỉ admin mới được đổi chủ sở hữu project",
+                code="PROJECT_OWNER_CHANGE_FORBIDDEN",
+            )
+        _ensure_owner_exists(db, update_data["owner_id"])
 
     for key, value in update_data.items():
         setattr(project, key, value)
@@ -117,7 +149,8 @@ def update_project(db: Session, project_id: int, payload: ProjectUpdate) -> Proj
     return project
 
 
-def delete_project(db: Session, project_id: int) -> None:
-    project = get_project(db, project_id)  # tự ném 404
+def delete_project(db: Session, project_id: int, user: User) -> None:
+    project = get_project(db, project_id)  # 404 trước
+    _ensure_can_modify(project, user, "xóa")      # admin, hoặc manager là chủ
     db.delete(project)
     db.commit()
