@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redux Workflow Frontend</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: một cột đọc, mỗi hình có caption; hình chính là vòng lặp Page -> Thunk -> Reducer -> Store -> Page */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6678;
+  --line: #c9d0dc;
+  --accent: #6b3fb5;
+  --accent-soft: #ece4f8;
+  --ok: #1d7a4d;
+  --err: #b3392f;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151c; --surface: #1a1f29; --fg: #e6e9f0; --muted: #98a2b5; --line: #384154;
+    --accent: #b99af0; --accent-soft: #2b2340; --ok: #5fcf97; --err: #f0877e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151c; --surface: #1a1f29; --fg: #e6e9f0; --muted: #98a2b5; --line: #384154;
+  --accent: #b99af0; --accent-soft: #2b2340; --ok: #5fcf97; --err: #f0877e; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-block: 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h2 { font-size: 18px; margin: 0 0 4px; text-wrap: balance; }
+p { margin: 0; color: var(--muted); max-width: 68ch; }
+code { font-family: var(--font-mono); font-size: 0.88em; color: var(--accent); }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+.scroll svg { display: block; width: 100%; min-width: 680px; height: auto; }
+figcaption { font-size: 13px; color: var(--muted); max-width: 80ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.slice { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.slice h3 { margin: 0; font-family: var(--font-mono); font-size: 14px; color: var(--accent); }
+.slice dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12.5px; }
+.slice dt { color: var(--muted); }
+.slice dd { margin: 0; font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+/* svg */
+svg text { fill: currentColor; font-family: var(--font-body); }
+.t { font-size: 13px; font-weight: 600; }
+.s { font-size: 11px; font-family: var(--font-mono); fill: var(--muted); }
+.l { font-size: 11px; font-family: var(--font-mono); }
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.hot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.arr { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.arr-a { stroke: var(--accent); stroke-width: 2; fill: none; }
+.arr-e { stroke: var(--err); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+.back { stroke: var(--muted); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <div class="eyebrow">frontend/src · Redux Toolkit</div>
+    <h1>Redux workflow của frontend</h1>
+    <p>Store có 4 slice (<code>auth</code>, <code>tasks</code>, <code>projects</code>, <code>projectMembers</code>). Mọi lời gọi API đi qua <code>createAsyncThunk</code>, kết quả quay về store bằng <code>extraReducers</code>.</p>
+  </header>
+
+  <section>
+    <h2>1. Vòng lặp dữ liệu</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 940 400" role="img" aria-label="Page dispatch thunk, thunk gọi api và backend, kết quả quay về reducer, cập nhật store, useSelector làm Page render lại">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--fg)"/></marker>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--err)"/></marker>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker>
+        </defs>
+
+        <!-- row 1 -->
+        <rect class="box" x="20" y="40" width="150" height="80" rx="4"/>
+        <text class="t" x="95" y="70" text-anchor="middle">Page / Component</text>
+        <text class="s" x="95" y="88" text-anchor="middle">TasksPage</text>
+        <text class="s" x="95" y="102" text-anchor="middle">ProjectsPage…</text>
+
+        <rect class="hot" x="270" y="40" width="150" height="80" rx="4"/>
+        <text class="t" x="345" y="70" text-anchor="middle">createAsyncThunk</text>
+        <text class="s" x="345" y="88" text-anchor="middle">fetchTasks</text>
+        <text class="s" x="345" y="102" text-anchor="middle">addProject…</text>
+
+        <rect class="box" x="520" y="40" width="150" height="80" rx="4"/>
+        <text class="t" x="595" y="70" text-anchor="middle">api/*Api.js</text>
+        <text class="s" x="595" y="88" text-anchor="middle">axiosClient</text>
+        <text class="s" x="595" y="102" text-anchor="middle">+ Bearer token</text>
+
+        <rect class="box" x="770" y="40" width="150" height="80" rx="4"/>
+        <text class="t" x="845" y="70" text-anchor="middle">FastAPI</text>
+        <text class="s" x="845" y="88" text-anchor="middle">127.0.0.1:8000</text>
+
+        <line class="arr" x1="170" y1="70" x2="268" y2="70" marker-end="url(#a1)"/>
+        <text class="l" x="220" y="62" text-anchor="middle">dispatch</text>
+        <line class="arr" x1="420" y1="70" x2="518" y2="70" marker-end="url(#a1)"/>
+        <text class="l" x="470" y="62" text-anchor="middle">await</text>
+        <line class="arr" x1="670" y1="70" x2="768" y2="70" marker-end="url(#a1)"/>
+        <text class="l" x="720" y="62" text-anchor="middle">HTTP</text>
+
+        <line class="back" x1="768" y1="95" x2="672" y2="95" marker-end="url(#a4)"/>
+        <line class="back" x1="518" y1="95" x2="422" y2="95" marker-end="url(#a4)"/>
+        <text class="l" x="470" y="112" text-anchor="middle" fill="var(--muted)">data / ApiError</text>
+
+        <!-- row 2 -->
+        <rect class="hot" x="270" y="250" width="150" height="80" rx="4"/>
+        <text class="t" x="345" y="280" text-anchor="middle">extraReducers</text>
+        <text class="s" x="345" y="298" text-anchor="middle">pending · fulfilled</text>
+        <text class="s" x="345" y="312" text-anchor="middle">· rejected</text>
+
+        <rect class="hot" x="20" y="250" width="150" height="80" rx="4"/>
+        <text class="t" x="95" y="280" text-anchor="middle">Store</text>
+        <text class="s" x="95" y="298" text-anchor="middle">auth · tasks</text>
+        <text class="s" x="95" y="312" text-anchor="middle">projects · members</text>
+
+        <!-- thunk -> reducers -->
+        <line class="arr-a" x1="345" y1="120" x2="345" y2="248" marker-end="url(#a2)"/>
+        <text class="l" x="355" y="170" fill="var(--accent)">tự dispatch</text>
+        <text class="l" x="355" y="186" fill="var(--accent)">3 action: tasks/fetch/…</text>
+
+        <!-- reducers -> store -->
+        <line class="arr-a" x1="270" y1="290" x2="172" y2="290" marker-end="url(#a2)"/>
+        <text class="l" x="221" y="282" text-anchor="middle" fill="var(--accent)">state mới</text>
+
+        <!-- store -> page -->
+        <line class="arr-a" x1="95" y1="250" x2="95" y2="122" marker-end="url(#a2)"/>
+        <text class="l" x="105" y="170" fill="var(--accent)">useSelector</text>
+        <text class="l" x="105" y="186" fill="var(--accent)">→ render lại</text>
+
+        <!-- 401 path -->
+        <path class="arr-e" d="M595 120 V290 H422" marker-end="url(#a3)"/>
+        <text class="l" x="605" y="196" fill="var(--err)">401 → window event</text>
+        <text class="l" x="605" y="212" fill="var(--err)">auth:unauthorized</text>
+        <text class="l" x="605" y="228" fill="var(--err)">→ store.dispatch(clearAuth)</text>
+
+        <!-- page-driven refetch -->
+        <path class="arr" d="M20 80 H8 V365 H345 V332" marker-end="url(#a1)" stroke-dasharray="1 0"/>
+        <text class="l" x="20" y="386">filter / page đổi → useEffect → dispatch fetch lại (mutation xong cũng gọi lại)</text>
+      </svg>
+      </div>
+      <figcaption>Đường tím là luồng Redux. Thunk tự phát ba action <code>pending</code>, <code>fulfilled</code>, <code>rejected</code> vào reducer. Đường đỏ nét đứt là ngoại lệ: <code>axiosClient</code> không import store (tránh vòng lặp import) nên báo 401 qua event, <code>store.js</code> lắng nghe và dispatch <code>clearAuth</code>.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>2. Vòng đời một request</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 940 230" role="img" aria-label="Máy trạng thái status: idle, loading, success hoặc error; filter đổi sẽ hủy request cũ">
+        <defs>
+          <marker id="b1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--fg)"/></marker>
+          <marker id="b2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--ok)"/></marker>
+          <marker id="b3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--err)"/></marker>
+        </defs>
+        <rect class="box" x="20" y="80" width="130" height="56" rx="4"/>
+        <text class="t" x="85" y="113" text-anchor="middle">idle</text>
+        <rect class="hot" x="300" y="80" width="130" height="56" rx="4"/>
+        <text class="t" x="365" y="113" text-anchor="middle">loading</text>
+        <rect class="box" x="700" y="20" width="220" height="56" rx="4" style="stroke:var(--ok)"/>
+        <text class="t" x="810" y="45" text-anchor="middle">success</text>
+        <text class="s" x="810" y="62" text-anchor="middle">items, total</text>
+        <rect class="box" x="700" y="140" width="220" height="56" rx="4" style="stroke:var(--err)"/>
+        <text class="t" x="810" y="165" text-anchor="middle">error</text>
+        <text class="s" x="810" y="182" text-anchor="middle">error = payload</text>
+
+        <line class="arr" x1="150" y1="108" x2="298" y2="108" marker-end="url(#b1)"/>
+        <text class="l" x="224" y="100" text-anchor="middle">fetch.pending</text>
+        <path class="arr" style="stroke:var(--ok)" d="M430 96 L560 48 H698" marker-end="url(#b2)"/>
+        <text class="l" x="565" y="40" text-anchor="middle" fill="var(--ok)">fetch.fulfilled</text>
+        <path class="arr" style="stroke:var(--err)" d="M430 120 L560 168 H698" marker-end="url(#b3)"/>
+        <text class="l" x="565" y="190" text-anchor="middle" fill="var(--err)">fetch.rejected</text>
+
+        <path class="arr" d="M340 80 C340 30 390 30 390 78" marker-end="url(#b1)"/>
+        <text class="l" x="365" y="22" text-anchor="middle">aborted → bỏ qua, ở lại loading</text>
+        <text class="l" x="20" y="215" fill="var(--muted)">fulfilled: nếu currentPage &gt; trang cuối → lùi về trang cuối, useEffect tự gọi lại</text>
+      </svg>
+      </div>
+      <figcaption>Áp dụng cho <code>tasks</code> và <code>projects</code>. Khi đổi bộ lọc, request cũ bị hủy bằng <code>signal</code>; reducer thấy <code>meta.aborted</code> thì không ghi đè thành <code>error</code>. <code>projectMembers</code> giữ cùng bộ ba trạng thái nhưng theo từng project trong <code>byProject[projectId]</code>.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>3. Hình dạng store</h2>
+    <div class="grid">
+      <div class="slice"><h3>auth</h3>
+        <dl><dt>state</dt><dd>user, loading</dd><dt>thunk</dt><dd>login, fetchMe, logout</dd><dt>reducer</dt><dd>clearAuth</dd><dt>dùng bởi</dt><dd>LoginPage, Sidebar, ProtectedRoute, main.jsx</dd></dl></div>
+      <div class="slice"><h3>tasks</h3>
+        <dl><dt>state</dt><dd>items, total, status, error, filters, currentPage</dd><dt>thunk</dt><dd>fetchTasks, addTask, editTask, finishTask, removeTask</dd><dt>reducer</dt><dd>setFilter, clearFilters, setPage</dd><dt>dùng bởi</dt><dd>TasksPage</dd></dl></div>
+      <div class="slice"><h3>projects</h3>
+        <dl><dt>state</dt><dd>items, total, status, error, filters, currentPage</dd><dt>thunk</dt><dd>fetchProjects, addProject, editProject, removeProject</dd><dt>reducer</dt><dd>setFilter, clearFilters, setPage</dd><dt>dùng bởi</dt><dd>ProjectsPage</dd></dl></div>
+      <div class="slice"><h3>projectMembers</h3>
+        <dl><dt>state</dt><dd>byProject: { [id]: items, status, error }</dd><dt>thunk</dt><dd>fetchMembers, addMember, removeMember</dd><dt>reducer</dt><dd>không có</dd><dt>dùng bởi</dt><dd>ProjectMembersPanel, TaskForm</dd></dl></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Hai điểm cần nhớ</h2>
+    <p><strong>Mutation không sửa <code>items</code> thủ công.</strong> Với tasks và projects, thêm, sửa, xóa chỉ gọi API; thứ tự và tổng số do backend quyết định nên page dispatch <code>fetch</code> lại. Riêng <code>projectMembers</code> cập nhật trực tiếp (push, sort theo tên, filter).</p>
+    <p><strong>Khởi động app.</strong> <code>main.jsx</code> kiểm tra token trong localStorage; có thì dispatch <code>fetchMe()</code>, và <code>auth.loading</code> bắt đầu là <code>true</code> để <code>ProtectedRoute</code> chờ. Hiện <code>ProtectedRoute</code> đang bị comment trong <code>App.jsx</code>, nên route chưa được chặn ở frontend.</p>
+  </section>
+</main>
+</body>
+</html>
