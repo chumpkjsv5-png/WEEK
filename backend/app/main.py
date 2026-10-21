@@ -10,10 +10,12 @@ from app.database import Base, engine
 
 # Import router
 from app.routers import task_router, project_router, user_router, project_members_router, auth_router
+from app.adapters.inbound.http.article_router import router as article_router
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from app.core.exceptions import AppError
+
 
 
 app = FastAPI(
@@ -68,6 +70,12 @@ def boom():
 
 logger = logging.getLogger(__name__)
 
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
@@ -89,3 +97,4 @@ app.include_router(project_router.router)
 app.include_router(user_router.router)
 app.include_router(project_members_router.router)
 app.include_router(auth_router.router)
+app.include_router(article_router)
