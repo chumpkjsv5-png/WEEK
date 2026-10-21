@@ -37,3 +37,12 @@ class ConflictError(AppError):
 class InternalServerError(AppError):
     status_code = 500
     code = "INTERNAL_SERVER_ERROR"
+
+class ContentMissingError(AppError):          # đổi AppError cho đúng tên lớp cha của bạn
+    status_code = 500
+    code = "CONTENT_MISSING"
+
+
+class StoreUnavailableError(AppError):
+    status_code = 503
+    code = "STORE_UNAVAILABLE"

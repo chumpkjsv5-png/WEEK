@@ -9,7 +9,7 @@ from app.database import Base, engine
 # from app.models.task_data import Task
 
 # Import router
-from app.routers import task_router, project_router, user_router, project_members_router, auth_router
+from app.routers import task_router, project_router, user_router, project_members_router, auth_router, article_router
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -89,3 +89,4 @@ app.include_router(project_router.router)
 app.include_router(user_router.router)
 app.include_router(project_members_router.router)
 app.include_router(auth_router.router)
+app.include_router(article_router.router)

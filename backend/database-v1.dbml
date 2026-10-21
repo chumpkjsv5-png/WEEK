@@ -1,0 +1,106 @@
+Enum "priority_enum" {
+  "Low"
+  "Medium"
+  "High"
+}
+
+Table "alembic_version" {
+  "version_num" varchar(32) [pk, not null]
+}
+
+Table "project_members" {
+  "project_id" int4 [not null]
+  "user_id" uuid [not null]
+  "created_at" timestamp [not null, default: `now()`]
+
+  Indexes {
+    (project_id, user_id) [pk, type: btree, name: "project_members_pkey"]
+    user_id [type: btree, name: "ix_project_members_user_id"]
+  }
+}
+
+Table "projects" {
+  "id" int4 [pk, not null, increment]
+  "name" varchar(150) [not null]
+  "description" text
+  "owner_id" uuid
+  "created_at" timestamp [default: `now()`]
+  "updated_at" timestamp [default: `now()`]
+}
+
+Table "tasks" {
+  "id" int4 [pk, not null, increment]
+  "project_id" int4 [not null]
+  "title" varchar(200) [not null]
+  "description" text
+  "status" varchar(20) [not null, check: `(status)::text = ANY (ARRAY[('pending'::character varying)::text, ('in_progress'::character varying)::text, ('completed'::character varying)::text])`, default: 'pending']
+  "priority" priority_enum [not null, default: 'Medium']
+  "created_at" timestamp [default: `now()`]
+  "updated_at" timestamp [default: `now()`]
+  "assignee_id" uuid
+  "due_date" date
+
+  Indexes {
+    assignee_id [type: btree, name: "ix_tasks_assignee_id"]
+    id [type: btree, name: "ix_tasks_id"]
+    project_id [type: btree, name: "ix_tasks_project_id"]
+    (project_id, status, created_at, id) [type: btree, name: "ix_tasks_project_status_created"]
+  }
+}
+
+Table "users" {
+  "id" uuid [pk, not null]
+  "email" varchar(255) [unique, not null]
+  "full_name" varchar(150) [not null]
+  "created_at" timestamp [default: `now()`]
+  "password_hash" varchar(255) [not null]
+  "role" varchar(20) [not null, check: `(role)::text = ANY ((ARRAY['admin'::character varying, 'manager'::character varying, 'member'::character varying])::text[])`, default: 'member']
+  "is_active" bool [not null, default: true]
+  "updated_at" timestamp [default: `now()`]
+}
+
+Table "articles" {
+  "id" int4 [pk, not null, increment]
+  "owner_id" uuid [not null]
+  "title" varchar(200) [not null]
+  "slug" varchar(220) [unique, not null]
+  "status" varchar(20) [not null, check: `(status)::text = ANY ((ARRAY['pending'::character varying, 'published'::character varying, 'failed'::character varying])::text[])`, default: 'pending']
+  "created_at" timestamp [default: `now()`]
+  "updated_at" timestamp [default: `now()`]
+
+  Indexes {
+    owner_id [type: btree, name: "ix_articles_owner_id"]
+    (status, created_at, id) [type: btree, name: "ix_articles_status_created"]
+  }
+}
+
+Table "tags" {
+  "id" int4 [pk, not null, increment]
+  "name" varchar(50) [unique, not null, check: `(name)::text = lower(btrim((name)::text))`]
+}
+
+Table "article_tags" {
+  "article_id" int4 [not null]
+  "tag_id" int4 [not null]
+
+  Indexes {
+    (article_id, tag_id) [pk, type: btree, name: "article_tags_pkey"]
+    tag_id [type: btree, name: "ix_article_tags_tag_id"]
+  }
+}
+
+Ref "article_tags_article_id_fkey":"articles"."id" <? "article_tags"."article_id" [delete: cascade]
+
+Ref "article_tags_tag_id_fkey":"tags"."id" <? "article_tags"."tag_id" [delete: cascade]
+
+Ref "articles_owner_id_fkey":"users"."id" <? "articles"."owner_id" [delete: restrict]
+
+Ref "project_members_project_id_fkey":"projects"."id" <? "project_members"."project_id" [delete: cascade]
+
+Ref "project_members_user_id_fkey":"users"."id" <? "project_members"."user_id" [delete: cascade]
+
+Ref "projects_owner_id_fkey":"users"."id" ?<? "projects"."owner_id" [delete: set null]
+
+Ref "tasks_assignee_id_fkey":"users"."id" ?<? "tasks"."assignee_id" [delete: set null]
+
+Ref "tasks_project_id_fkey":"projects"."id" <? "tasks"."project_id" [delete: cascade]
