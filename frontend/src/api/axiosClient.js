@@ -20,7 +20,7 @@ export class ApiError extends Error {
 }
 
 const FRIENDLY = {
-  401: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+
   403: "Bạn không có quyền thực hiện thao tác này.",
   404: "Không tìm thấy dữ liệu bạn yêu cầu.",
   409: "Dữ liệu bị xung đột với dữ liệu hiện có.",
@@ -54,7 +54,7 @@ axiosClient.interceptors.response.use(
     }
 
     const { status, data } = error.response;
-    const e = data?.error; // shape mới: { code, message, fields }
+    const e = data?.detail ?? data?.error;
 
     // Dự phòng shape cũ { detail } phòng khi có lỗi không đi qua handler
     let legacy;
@@ -68,11 +68,21 @@ axiosClient.interceptors.response.use(
       fields: e?.fields,
     });
 
-    // 401 ở request thường (không phải login) = token hết hạn hoặc bị từ chối
     const isLogin = error.config?.url?.includes("/auth/login");
+
     if (status === 401 && !isLogin) {
-      localStorage.removeItem(TOKEN_KEY);
-      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      if (apiError.code === "TOKEN_EXPIRED") {
+        // Token hết hạn: xóa token và yêu cầu đăng nhập lại.
+        // Nếu sau này có refresh token, xử lý refresh tại đây.
+        localStorage.removeItem(TOKEN_KEY);
+        window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      } else if (
+        apiError.code === "AUTHENTICATION_REQUIRED" ||
+        apiError.code === "INVALID_TOKEN"
+      ) {
+        localStorage.removeItem(TOKEN_KEY);
+        window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      }
     }
 
     return Promise.reject(apiError);
