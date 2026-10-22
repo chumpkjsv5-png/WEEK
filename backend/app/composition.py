@@ -29,6 +29,17 @@ from app.application.use_cases.project_use_cases import (
     UpdateProject,
 )
 
+from app.adapters.outbound.persistence.postgres_project_member_repository import (
+    PostgresProjectMemberRepository,
+)
+from app.application.ports.project_member_repository import ProjectMemberRepository
+from app.application.use_cases.project_member_use_cases import (
+    AddMember,
+    ListMembers,
+    RemoveMember,
+    SearchUsersToAdd,
+)
+
 from app.adapters.outbound.persistence.mongo_article_content_repository import (
     MongoArticleContentRepository,
 )
@@ -102,6 +113,32 @@ def get_update_project(projects: ProjectRepo) -> UpdateProject:
 def get_delete_project(projects: ProjectRepo) -> DeleteProject:
     return DeleteProject(projects)
 
+# PROJECT_MEMBER
+
+def get_project_member_repo(
+    db: Annotated[Session, Depends(get_db)],
+) -> ProjectMemberRepository:
+    return PostgresProjectMemberRepository(db)
+
+
+MemberRepo = Annotated[ProjectMemberRepository, Depends(get_project_member_repo)]
+
+
+def get_list_members(repo: MemberRepo) -> ListMembers:
+    return ListMembers(repo)
+
+
+def get_search_users_to_add(repo: MemberRepo) -> SearchUsersToAdd:
+    return SearchUsersToAdd(repo)
+
+
+def get_add_member(repo: MemberRepo) -> AddMember:
+    return AddMember(repo)
+
+
+def get_remove_member(repo: MemberRepo) -> RemoveMember:
+    return RemoveMember(repo)
+    
 # ACTICLE
 
 def get_article_meta_repo(

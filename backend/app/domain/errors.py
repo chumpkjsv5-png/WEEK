@@ -44,3 +44,27 @@ class TaskNotAssignedToYou(Exception):
 
 class TaskStatusOnly(Exception):
     pass
+
+# Project_member
+class ProjectMemberForbidden(Exception):
+    pass
+
+
+class UserNotFound(Exception):
+    pass
+
+
+class MemberAlreadyExists(Exception):
+    pass
+
+
+class MemberNotFound(Exception):
+    pass
+
+
+class CannotRemoveOwner(Exception):
+    pass
+
+
+class MemberHasOpenTasks(Exception):
+    pass
