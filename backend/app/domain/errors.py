@@ -8,8 +8,20 @@ class ContentMissing(Exception):
 
 class StoreUnavailable(Exception):
     pass
-    
 
+# project     
+class ProjectForbidden(Exception):
+    pass
+
+
+class ProjectOwnerChangeForbidden(Exception):
+    pass
+
+
+class OwnerNotFound(Exception):
+    pass
+
+# Tasks
 class TaskNotFound(Exception):
     pass
 

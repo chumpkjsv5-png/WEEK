@@ -17,6 +17,9 @@ from app.domain.errors import (
     TaskNotAssignedToYou,
     TaskNotFound,
     TaskStatusOnly,
+    OwnerNotFound,
+    ProjectForbidden,
+    ProjectOwnerChangeForbidden,
 )
 
 # (lỗi domain, lỗi HTTP, mã code; None = dùng mã mặc định của lớp HTTP)
@@ -28,6 +31,9 @@ _TRANSLATIONS = [
     (AssigneeNotProjectMember, BadRequestError, "ASSIGNEE_NOT_PROJECT_MEMBER"),
     (TaskNotAssignedToYou, ForbiddenError, "TASK_NOT_ASSIGNED_TO_YOU"),
     (TaskStatusOnly, ForbiddenError, "TASK_STATUS_ONLY"),
+    (ProjectForbidden, ForbiddenError, "PROJECT_FORBIDDEN"),
+    (ProjectOwnerChangeForbidden, ForbiddenError, "PROJECT_OWNER_CHANGE_FORBIDDEN"),
+    (OwnerNotFound, BadRequestError, "OWNER_NOT_FOUND"),
     (ContentMissing, ContentMissingError, None),
     (StoreUnavailable, StoreUnavailableError, None),
 ]
