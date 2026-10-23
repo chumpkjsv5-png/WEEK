@@ -21,6 +21,7 @@ export class ApiError extends Error {
 
 const FRIENDLY = {
 
+  401: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ.",
   403: "Bạn không có quyền thực hiện thao tác này.",
   404: "Không tìm thấy dữ liệu bạn yêu cầu.",
   409: "Dữ liệu bị xung đột với dữ liệu hiện có.",

@@ -68,3 +68,19 @@ class CannotRemoveOwner(Exception):
 
 class MemberHasOpenTasks(Exception):
     pass
+
+
+class InvalidCredentials(Exception):
+    pass
+
+
+class AccountDisabled(Exception):
+    pass
+
+
+class NotAuthenticated(Exception):
+    pass
+
+
+class InvalidSession(Exception):
+    pass
