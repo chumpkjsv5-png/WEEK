@@ -10,10 +10,11 @@ from dotenv import load_dotenv
 
 from app.database import Base
 
-from app.models.project_data import Project
-from app.models.project_member import ProjectMember
-from app.models.task_data import Task
-from app.models.user_data import User
+# Imported so the models register on Base.metadata for autogenerate.
+from app.models.project_data import Project  # noqa: F401
+from app.models.project_member import ProjectMember  # noqa: F401
+from app.models.task_data import Task  # noqa: F401
+from app.models.user_data import User  # noqa: F401
 
 
 config = context.config
