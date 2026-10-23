@@ -9,11 +9,12 @@ from app.database import Base, engine
 # from app.models.task_data import Task
 
 # Import router
-from app.routers import user_router, auth_router
 from app.adapters.inbound.http.article_router import router as article_router
 from app.adapters.inbound.http.task_router import router as task_router
 from app.adapters.inbound.http.project_router import router as project_router
 from app.adapters.inbound.http.project_members_router import router as project_members_router
+from app.adapters.inbound.http.user_router import router as user_router
+from app.adapters.inbound.http.auth_router import router as auth_router
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -97,7 +98,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # Include router Task
 app.include_router(task_router)
 app.include_router(project_router)
-app.include_router(user_router.router)
+app.include_router(user_router)
 app.include_router(project_members_router)
-app.include_router(auth_router.router)
+app.include_router(auth_router)
 app.include_router(article_router)
