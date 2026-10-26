@@ -12,7 +12,7 @@ from app.application.use_cases.article_use_cases import (
     GetArticle,
     SearchArticles,
 )
-from app.core.dependencies import get_current_user
+from app.adapters.inbound.http.dependencies import get_current_user
 from app.domain.article import ContentBlock
 from app.models.user_data import User
 from app.schemas.article_schema import (

@@ -2,54 +2,67 @@ from contextlib import contextmanager
 
 from app.core.exceptions import (
     BadRequestError,
+    ConflictError,
     ContentMissingError,
     ForbiddenError,
     NotFoundError,
     StoreUnavailableError,
-    ConflictError,
+    UnauthorizedError,
 )
 from app.domain.errors import (
+    AccountDisabled,
     ArticleNotFound,
     AssigneeNotFound,
-    AssigneeNotProjectMember,   
+    AssigneeNotProjectMember,
+    CannotRemoveOwner,
     ContentMissing,
+    InvalidCredentials,
+    InvalidSession,
+    MemberAlreadyExists,
+    MemberHasOpenTasks,
+    MemberNotFound,
+    NotAuthenticated,
+    OwnerNotFound,
+    ProjectForbidden,
+    ProjectMemberForbidden,
     ProjectNotFound,
+    ProjectOwnerChangeForbidden,
     StoreUnavailable,
     TaskNotAssignedToYou,
     TaskNotFound,
     TaskStatusOnly,
-    OwnerNotFound,
-    ProjectForbidden,
-    ProjectOwnerChangeForbidden,
-    CannotRemoveOwner,
-    MemberAlreadyExists,
-    MemberHasOpenTasks,
-    MemberNotFound,
-    ProjectMemberForbidden,
     UserNotFound,
 )
 
 # (lỗi domain, lỗi HTTP, mã code; None = dùng mã mặc định của lớp HTTP)
 _TRANSLATIONS = [
+    # articles
     (ArticleNotFound, NotFoundError, "ARTICLE_NOT_FOUND"),
+    (ContentMissing, ContentMissingError, None),
+    (StoreUnavailable, StoreUnavailableError, None),
+    # tasks
     (TaskNotFound, NotFoundError, "TASK_NOT_FOUND"),
     (ProjectNotFound, NotFoundError, "PROJECT_NOT_FOUND"),
     (AssigneeNotFound, NotFoundError, "ASSIGNEE_NOT_FOUND"),
     (AssigneeNotProjectMember, BadRequestError, "ASSIGNEE_NOT_PROJECT_MEMBER"),
     (TaskNotAssignedToYou, ForbiddenError, "TASK_NOT_ASSIGNED_TO_YOU"),
     (TaskStatusOnly, ForbiddenError, "TASK_STATUS_ONLY"),
+    # projects
     (ProjectForbidden, ForbiddenError, "PROJECT_FORBIDDEN"),
     (ProjectOwnerChangeForbidden, ForbiddenError, "PROJECT_OWNER_CHANGE_FORBIDDEN"),
     (OwnerNotFound, BadRequestError, "OWNER_NOT_FOUND"),
-    # project_member
+    # project members
     (ProjectMemberForbidden, ForbiddenError, "PROJECT_MEMBER_FORBIDDEN"),
     (UserNotFound, NotFoundError, "USER_NOT_FOUND"),
     (MemberAlreadyExists, ConflictError, "MEMBER_ALREADY_EXISTS"),
     (MemberNotFound, NotFoundError, "MEMBER_NOT_FOUND"),
     (CannotRemoveOwner, ConflictError, "CANNOT_REMOVE_OWNER"),
     (MemberHasOpenTasks, ConflictError, "MEMBER_HAS_OPEN_TASKS"),
-    (ContentMissing, ContentMissingError, None),
-    (StoreUnavailable, StoreUnavailableError, None),
+    # auth
+    (InvalidCredentials, UnauthorizedError, "INVALID_CREDENTIALS"),
+    (AccountDisabled, ForbiddenError, "ACCOUNT_DISABLED"),
+    (NotAuthenticated, UnauthorizedError, "UNAUTHORIZED"),
+    (InvalidSession, UnauthorizedError, "UNAUTHORIZED"),
 ]
 
 
