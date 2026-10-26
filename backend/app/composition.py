@@ -56,7 +56,19 @@ from app.application.ports.user_auth_repository import UserAuthRepository  # noq
 from app.application.ports.user_repository import UserRepository  # noqa: E402
 from app.application.use_cases.auth_use_cases import AuthenticateToken, Login  # noqa: E402
 from app.application.use_cases.user_use_cases import GetUser, SearchUsers  # noqa: E402
-
+# --- token ---
+from app.adapters.outbound.persistence.postgres_refresh_token_repository import (
+    PostgresRefreshTokenRepository,
+)
+from app.adapters.outbound.security.refresh_token_generator import (
+    SecureRefreshTokenGenerator,
+)
+from app.application.ports.refresh_token_repository import (
+    RefreshTokenRepository,
+)
+from app.application.ports.refresh_token_generator import (
+    RefreshTokenGenerator,
+)
 
 from app.adapters.outbound.persistence.mongo_article_content_repository import (
     MongoArticleContentRepository,
@@ -188,12 +200,49 @@ def get_get_user(users: UserRepo) -> GetUser:
     return GetUser(users)
 
 
-def get_login(users: AuthRepo, hasher: Verifier, tokens: Tokens) -> Login:
-    return Login(users, hasher, tokens)
+# TOKEN
+
+
+def get_refresh_token_repo(
+    db: Annotated[Session, Depends(get_db)],
+) -> RefreshTokenRepository:
+    return PostgresRefreshTokenRepository(db)
+
+
+def get_refresh_token_generator() -> RefreshTokenGenerator:
+    return SecureRefreshTokenGenerator()
+
+
+RefreshTokenRepo = Annotated[
+    RefreshTokenRepository,
+    Depends(get_refresh_token_repo),
+]
+
+RefreshGenerator = Annotated[
+    RefreshTokenGenerator,
+    Depends(get_refresh_token_generator),
+]
+
+def get_login(
+    users: AuthRepo,
+    hasher: Verifier,
+    tokens: Tokens,
+    refresh_tokens: RefreshTokenRepo,
+    refresh_generator: RefreshGenerator,
+) -> Login:
+    return Login(
+        users,
+        hasher,
+        tokens,
+        refresh_tokens,
+        refresh_generator,
+    )
 
 
 def get_authenticate_token(users: AuthRepo, tokens: Tokens) -> AuthenticateToken:
     return AuthenticateToken(users, tokens)
+
+
     
 # ACTICLE
 

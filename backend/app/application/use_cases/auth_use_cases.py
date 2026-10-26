@@ -9,31 +9,74 @@ from app.domain.errors import (
     InvalidSession,
     NotAuthenticated,
 )
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
+from app.application.ports.refresh_token_generator import (
+    RefreshTokenGenerator,
+)
+from app.application.ports.refresh_token_repository import (
+    RefreshTokenRepository,
+)
+from app.domain.refresh_session import NewRefreshSession
+from app.domain.token_pair import TokenPair
 
 
 class Login:
+    REFRESH_TOKEN_EXPIRE_DAYS = 30
+
     def __init__(
         self,
         users: UserAuthRepository,
         hasher: PasswordVerifier,
         tokens: TokenService,
+        refresh_tokens: RefreshTokenRepository,
+        refresh_token_generator: RefreshTokenGenerator,
     ):
         self.users = users
         self.hasher = hasher
         self.tokens = tokens
+        self.refresh_tokens = refresh_tokens
+        self.refresh_token_generator = refresh_token_generator
 
-    def execute(self, email: str, password: str) -> str:
+    def execute(self, email: str, password: str) -> TokenPair:
         email = email.strip().lower()
         creds = self.users.find_credentials_by_email(email)
 
-        
-# The same notification for an incorrect email and an incorrect password
-        if creds is None or not self.hasher.verify(password, creds.password_hash):
+        if creds is None or not self.hasher.verify(
+            password, creds.password_hash
+        ):
             raise InvalidCredentials("Email hoặc mật khẩu không đúng")
-        # Kiểm tra mật khẩu trước, is_active sau
+
         if not creds.is_active:
             raise AccountDisabled("Tài khoản đã bị vô hiệu hoá")
-        return self.tokens.issue(str(creds.id))
+
+        now = datetime.now(timezone.utc)
+        family_id = uuid4()
+        refresh_token = self.refresh_token_generator.new_token()
+
+        self.refresh_tokens.add(
+            NewRefreshSession(
+                user_id=creds.id,
+                family_id=family_id,
+                token_hash=self.refresh_token_generator.hash_token(
+                    refresh_token
+                ),
+                expires_at=now + timedelta(
+                    days=self.REFRESH_TOKEN_EXPIRE_DAYS
+                ),
+            )
+        )
+
+        access_token = self.tokens.issue(
+            str(creds.id),
+            session_id=str(family_id),
+        )
+
+        return TokenPair(
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
 
 
 class AuthenticateToken:

@@ -18,8 +18,12 @@ CurrentUser = Annotated[AuthUser, Depends(get_current_user)]
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, uc: LoginUC):
     with translate_domain_errors():
-        token = uc.execute(data.email, data.password)
-    return TokenResponse(access_token=token)
+        result = uc.execute(data.email, data.password)
+
+    return TokenResponse(
+        access_token=result.access_token,
+        refresh_token=result.refresh_token,
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,5 +1,5 @@
+
 import uuid
-from typing import Optional, Protocol
 
 import pytest
 
@@ -11,6 +11,7 @@ from app.domain.errors import (
     InvalidSession,
     NotAuthenticated,
 )
+from app.domain.refresh_session import RefreshSession
 
 
 class FakeAuthRepo:
@@ -20,8 +21,18 @@ class FakeAuthRepo:
 
     def add(self, email, password, is_active=True, role="member"):
         uid = uuid.uuid4()
-        self.creds[email] = UserCredentials(uid, f"hashed:{password}", is_active)
-        self.users[uid] = AuthUser(uid, email, "Tên", role, is_active)
+        self.creds[email] = UserCredentials(
+            uid,
+            f"hashed:{password}",
+            is_active,
+        )
+        self.users[uid] = AuthUser(
+            uid,
+            email,
+            "Tên",
+            role,
+            is_active,
+        )
         return uid
 
     def find_credentials_by_email(self, email):
@@ -37,51 +48,117 @@ class FakeHasher:
 
 
 class FakeTokens:
-    def issue(self, user_id):
+    def issue(self, user_id, session_id=None):
         return f"tok:{user_id}"
 
     def verify(self, token):
         if not token.startswith("tok:"):
-            raise InvalidSession("Phiên đăng nhập không hợp lệ hoặc đã hết hạn")
+            raise InvalidSession(
+                "Phiên đăng nhập không hợp lệ hoặc đã hết hạn"
+            )
+
         try:
             return uuid.UUID(token[4:])
         except ValueError:
-            raise InvalidSession("Phiên đăng nhập không hợp lệ hoặc đã hết hạn")
+            raise InvalidSession(
+                "Phiên đăng nhập không hợp lệ hoặc đã hết hạn"
+            )
+
+    def get_session_id(self, token):
+        return None
+
+
+class FakeRefreshTokenRepo:
+    def __init__(self):
+        self.sessions = []
+
+    def add(self, new):
+        session = RefreshSession(
+            id=uuid.uuid4(),
+            user_id=new.user_id,
+            family_id=new.family_id,
+            token_hash=new.token_hash,
+            expires_at=new.expires_at,
+        )
+        self.sessions.append(session)
+        return session
+
+
+class FakeRefreshTokenGenerator:
+    def new_token(self):
+        return "fake-refresh-token"
+
+    def hash_token(self, raw_token):
+        return f"hash:{raw_token}"
 
 
 def _login(repo):
-    return Login(repo, FakeHasher(), FakeTokens())
+    return Login(
+        repo,
+        FakeHasher(),
+        FakeTokens(),
+        FakeRefreshTokenRepo(),
+        FakeRefreshTokenGenerator(),
+    )
 
 
 def _auth(repo):
     return AuthenticateToken(repo, FakeTokens())
 
 
-def test_login_success_returns_token_for_user():
+def test_login_success_returns_access_and_refresh_tokens():
     repo = FakeAuthRepo()
     uid = repo.add("a@x.com", "secret")
-    assert _login(repo).execute("a@x.com", "secret") == f"tok:{uid}"
+
+    result = _login(repo).execute("a@x.com", "secret")
+
+    assert result.access_token == f"tok:{uid}"
+    assert result.refresh_token == "fake-refresh-token"
 
 
 def test_login_normalizes_email():
     repo = FakeAuthRepo()
     repo.add("a@x.com", "secret")
-    assert _login(repo).execute("  A@X.COM ", "secret").startswith("tok:")
+
+    result = _login(repo).execute("  A@X.COM ", "secret")
+
+    assert result.access_token.startswith("tok:")
+    assert result.refresh_token == "fake-refresh-token"
+
+
+def test_login_persists_hashed_refresh_token():
+    repo = FakeAuthRepo()
+    uid = repo.add("a@x.com", "secret")
+    login = _login(repo)
+
+    result = login.execute("a@x.com", "secret")
+
+    assert len(login.refresh_tokens.sessions) == 1
+
+    session = login.refresh_tokens.sessions[0]
+    assert session.user_id == uid
+    assert session.token_hash == "hash:fake-refresh-token"
+    assert session.token_hash != result.refresh_token
+    assert session.family_id is not None
 
 
 def test_wrong_password_and_unknown_email_share_the_same_error():
     repo = FakeAuthRepo()
     repo.add("a@x.com", "secret")
+
     with pytest.raises(InvalidCredentials) as wrong_pw:
         _login(repo).execute("a@x.com", "bad")
+
     with pytest.raises(InvalidCredentials) as no_user:
         _login(repo).execute("nobody@x.com", "secret")
+
     assert str(wrong_pw.value) == str(no_user.value)
 
 
 def test_disabled_account_with_correct_password_is_rejected():
     repo = FakeAuthRepo()
     repo.add("a@x.com", "secret", is_active=False)
+
     with pytest.raises(AccountDisabled):
         _login(repo).execute("a@x.com", "secret")
 
@@ -89,6 +166,7 @@ def test_disabled_account_with_correct_password_is_rejected():
 def test_disabled_account_with_wrong_password_does_not_reveal_status():
     repo = FakeAuthRepo()
     repo.add("a@x.com", "secret", is_active=False)
+
     with pytest.raises(InvalidCredentials):
         _login(repo).execute("a@x.com", "bad")
 
@@ -111,7 +189,14 @@ def test_authenticate_with_unknown_user_raises_invalid_session():
 def test_authenticate_deactivated_user_raises_invalid_session():
     repo = FakeAuthRepo()
     uid = repo.add("a@x.com", "secret")
-    repo.users[uid] = AuthUser(uid, "a@x.com", "Tên", "member", False)
+    repo.users[uid] = AuthUser(
+        uid,
+        "a@x.com",
+        "Tên",
+        "member",
+        False,
+    )
+
     with pytest.raises(InvalidSession):
         _auth(repo).execute(f"tok:{uid}")
 
@@ -119,6 +204,15 @@ def test_authenticate_deactivated_user_raises_invalid_session():
 def test_authenticate_reads_role_from_repository_not_from_token():
     repo = FakeAuthRepo()
     uid = repo.add("a@x.com", "secret", role="member")
-    token = _login(repo).execute("a@x.com", "secret")
-    repo.users[uid] = AuthUser(uid, "a@x.com", "Tên", "admin", True)  # đổi role sau khi cấp token
-    assert _auth(repo).execute(token).role == "admin"
+
+    result = _login(repo).execute("a@x.com", "secret")
+
+    repo.users[uid] = AuthUser(
+        uid,
+        "a@x.com",
+        "Tên",
+        "admin",
+        True,
+    )
+
+    assert _auth(repo).execute(result.access_token).role == "admin"
