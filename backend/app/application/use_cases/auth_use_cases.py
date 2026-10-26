@@ -26,7 +26,8 @@ class Login:
         email = email.strip().lower()
         creds = self.users.find_credentials_by_email(email)
 
-        # Cùng một thông báo cho sai email và sai mật khẩu
+        
+# The same notification for an incorrect email and an incorrect password
         if creds is None or not self.hasher.verify(password, creds.password_hash):
             raise InvalidCredentials("Email hoặc mật khẩu không đúng")
         # Kiểm tra mật khẩu trước, is_active sau
@@ -44,9 +45,10 @@ class AuthenticateToken:
         if token is None:
             raise NotAuthenticated("Bạn chưa đăng nhập")
 
-        user_id = self.tokens.verify(token)  # ném InvalidSession nếu không hợp lệ
+        user_id = self.tokens.verify(token) # throws InvalidSession if invalid
 
-        # Role và is_active luôn đọc từ DB, không lấy từ token
+
+# The 'role' and 'is_active' fields are always read from the database, not from the token.
         user = self.users.get_auth_user(user_id)
         if user is None or not user.is_active:
             raise InvalidSession("Phiên đăng nhập không hợp lệ hoặc đã hết hạn")
