@@ -1,4 +1,3 @@
-import uuid
 from sqlalchemy import (
     Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint,
     Index, desc,
