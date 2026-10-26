@@ -84,3 +84,10 @@ class NotAuthenticated(Exception):
 
 class InvalidSession(Exception):
     pass
+# Refresh token
+class RefreshTokenInvalid(Exception):
+    pass
+ 
+ 
+class RefreshTokenReused(Exception):
+    pass
