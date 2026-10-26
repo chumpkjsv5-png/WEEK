@@ -1,5 +1,5 @@
-
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -21,11 +21,13 @@ class FakeAuthRepo:
 
     def add(self, email, password, is_active=True, role="member"):
         uid = uuid.uuid4()
+
         self.creds[email] = UserCredentials(
             uid,
             f"hashed:{password}",
             is_active,
         )
+
         self.users[uid] = AuthUser(
             uid,
             email,
@@ -33,6 +35,7 @@ class FakeAuthRepo:
             role,
             is_active,
         )
+
         return uid
 
     def find_credentials_by_email(self, email):
@@ -48,8 +51,19 @@ class FakeHasher:
 
 
 class FakeTokens:
+    def __init__(self):
+        self.session_ids = {}
+
     def issue(self, user_id, session_id=None):
-        return f"tok:{user_id}"
+        token = f"tok:{user_id}"
+
+        self.session_ids[token] = (
+            uuid.UUID(str(session_id))
+            if session_id is not None
+            else None
+        )
+
+        return token
 
     def verify(self, token):
         if not token.startswith("tok:"):
@@ -65,7 +79,7 @@ class FakeTokens:
             )
 
     def get_session_id(self, token):
-        return None
+        return self.session_ids.get(token)
 
 
 class FakeRefreshTokenRepo:
@@ -80,8 +94,19 @@ class FakeRefreshTokenRepo:
             token_hash=new.token_hash,
             expires_at=new.expires_at,
         )
+
         self.sessions.append(session)
         return session
+
+    def get_by_id(self, session_id):
+        return next(
+            (
+                session
+                for session in self.sessions
+                if session.id == session_id
+            ),
+            None,
+        )
 
 
 class FakeRefreshTokenGenerator:
@@ -102,8 +127,34 @@ def _login(repo):
     )
 
 
-def _auth(repo):
-    return AuthenticateToken(repo, FakeTokens())
+def _auth(repo, refresh_tokens=None, tokens=None):
+    return AuthenticateToken(
+        repo,
+        tokens or FakeTokens(),
+        refresh_tokens or FakeRefreshTokenRepo(),
+    )
+
+
+def _add_active_session(repo, user_id, tokens, refresh_tokens):
+    """Tạo session hợp lệ và access token tương ứng cho test."""
+    now = datetime.now(timezone.utc)
+
+    session = RefreshSession(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        family_id=uuid.uuid4(),
+        token_hash="test-hash",
+        expires_at=now + timedelta(days=7),
+    )
+
+    refresh_tokens.sessions.append(session)
+
+    token = tokens.issue(
+        str(user_id),
+        session_id=str(session.id),
+    )
+
+    return token, session
 
 
 def test_login_success_returns_access_and_refresh_tokens():
@@ -136,6 +187,7 @@ def test_login_persists_hashed_refresh_token():
     assert len(login.refresh_tokens.sessions) == 1
 
     session = login.refresh_tokens.sessions[0]
+
     assert session.user_id == uid
     assert session.token_hash == "hash:fake-refresh-token"
     assert session.token_hash != result.refresh_token
@@ -182,13 +234,26 @@ def test_authenticate_with_garbage_token_raises_invalid_session():
 
 
 def test_authenticate_with_unknown_user_raises_invalid_session():
+    repo = FakeAuthRepo()
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    uid = uuid.uuid4()
+    token, _ = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
+
     with pytest.raises(InvalidSession):
-        _auth(FakeAuthRepo()).execute(f"tok:{uuid.uuid4()}")
+        _auth(repo, refresh_tokens, tokens).execute(token)
 
 
 def test_authenticate_deactivated_user_raises_invalid_session():
     repo = FakeAuthRepo()
     uid = repo.add("a@x.com", "secret")
+
     repo.users[uid] = AuthUser(
         uid,
         "a@x.com",
@@ -197,15 +262,33 @@ def test_authenticate_deactivated_user_raises_invalid_session():
         False,
     )
 
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    token, _ = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
+
     with pytest.raises(InvalidSession):
-        _auth(repo).execute(f"tok:{uid}")
+        _auth(repo, refresh_tokens, tokens).execute(token)
 
 
 def test_authenticate_reads_role_from_repository_not_from_token():
     repo = FakeAuthRepo()
     uid = repo.add("a@x.com", "secret", role="member")
 
-    result = _login(repo).execute("a@x.com", "secret")
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    token, _ = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
 
     repo.users[uid] = AuthUser(
         uid,
@@ -215,4 +298,97 @@ def test_authenticate_reads_role_from_repository_not_from_token():
         True,
     )
 
-    assert _auth(repo).execute(result.access_token).role == "admin"
+    result = _auth(repo, refresh_tokens, tokens).execute(token)
+
+    assert result.role == "admin"
+
+
+def test_authenticate_rejects_token_without_session_id():
+    repo = FakeAuthRepo()
+    uid = repo.add("a@x.com", "secret")
+
+    tokens = FakeTokens()
+    token = tokens.issue(str(uid))
+
+    with pytest.raises(InvalidSession):
+        _auth(repo, FakeRefreshTokenRepo(), tokens).execute(token)
+
+
+def test_authenticate_rejects_revoked_session():
+    repo = FakeAuthRepo()
+    uid = repo.add("a@x.com", "secret")
+
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    token, session = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
+
+    session.revoked_at = datetime.now(timezone.utc)
+
+    with pytest.raises(InvalidSession):
+        _auth(repo, refresh_tokens, tokens).execute(token)
+
+
+def test_authenticate_rejects_replaced_session():
+    repo = FakeAuthRepo()
+    uid = repo.add("a@x.com", "secret")
+
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    token, session = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
+
+    session.replaced_by = uuid.uuid4()
+
+    with pytest.raises(InvalidSession):
+        _auth(repo, refresh_tokens, tokens).execute(token)
+
+
+def test_authenticate_rejects_expired_session():
+    repo = FakeAuthRepo()
+    uid = repo.add("a@x.com", "secret")
+
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    token, session = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
+
+    session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+
+    with pytest.raises(InvalidSession):
+        _auth(repo, refresh_tokens, tokens).execute(token)
+
+
+def test_authenticate_accepts_active_session():
+    repo = FakeAuthRepo()
+    uid = repo.add("a@x.com", "secret", role="member")
+
+    tokens = FakeTokens()
+    refresh_tokens = FakeRefreshTokenRepo()
+
+    token, _ = _add_active_session(
+        repo,
+        uid,
+        tokens,
+        refresh_tokens,
+    )
+
+    result = _auth(repo, refresh_tokens, tokens).execute(token)
+
+    assert result.id == uid
+    assert result.role == "member"

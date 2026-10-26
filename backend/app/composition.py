@@ -54,7 +54,7 @@ from app.adapters.outbound.security.pwdlib_password_verifier import (  # noqa: E
 from app.application.ports.security import PasswordVerifier, TokenService  # noqa: E402
 from app.application.ports.user_auth_repository import UserAuthRepository  # noqa: E402
 from app.application.ports.user_repository import UserRepository  # noqa: E402
-from app.application.use_cases.auth_use_cases import AuthenticateToken, Login  # noqa: E402
+from app.application.use_cases.auth_use_cases import AuthenticateToken, Login, RefreshAccessToken  # noqa: E402
 from app.application.use_cases.user_use_cases import GetUser, SearchUsers  # noqa: E402
 # --- token ---
 from app.adapters.outbound.persistence.postgres_refresh_token_repository import (
@@ -200,6 +200,7 @@ def get_get_user(users: UserRepo) -> GetUser:
     return GetUser(users)
 
 
+
 # TOKEN
 
 
@@ -239,8 +240,26 @@ def get_login(
     )
 
 
-def get_authenticate_token(users: AuthRepo, tokens: Tokens) -> AuthenticateToken:
-    return AuthenticateToken(users, tokens)
+def get_refresh_access_token(
+    users: AuthRepo,
+    tokens: Tokens,
+    refresh_tokens: RefreshTokenRepo,
+    refresh_generator: RefreshGenerator,
+) -> RefreshAccessToken:
+    return RefreshAccessToken(
+        users,
+        tokens,
+        refresh_tokens,
+        refresh_generator,
+    )
+
+
+def get_authenticate_token(
+    users: AuthRepo,
+    tokens: Tokens,
+    refresh_tokens: RefreshTokenRepo,
+) -> AuthenticateToken:
+    return AuthenticateToken(users, tokens, refresh_tokens)
 
 
     

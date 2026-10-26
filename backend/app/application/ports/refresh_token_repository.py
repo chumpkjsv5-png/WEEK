@@ -11,6 +11,8 @@ class RefreshTokenRepository(Protocol):
 
     def get_by_token_hash(self, token_hash: str) -> Optional[RefreshSession]: ...
 
+    def get_by_id(self, session_id: UUID) -> Optional[RefreshSession]: ...
+
     def consume(self, session_id: UUID, replaced_by: UUID, now: datetime) -> bool:
         """Only update the token if it has not been revoked. Return True if the update succeeds, 
         or False if another request has already used this token (treat it as token reuse)..

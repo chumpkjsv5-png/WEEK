@@ -52,6 +52,14 @@ class PostgresRefreshTokenRepository:
         )
         return self._to_domain(row) if row else None
 
+    def get_by_id(self, session_id: UUID) -> Optional[RefreshSession]:
+        row = self.db.scalar(
+            select(RefreshTokenRow).where(
+                RefreshTokenRow.id == session_id
+            )
+        )
+        return self._to_domain(row) if row else None
+
     def consume(
         self,
         session_id: UUID,
