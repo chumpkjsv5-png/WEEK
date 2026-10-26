@@ -40,6 +40,24 @@ from app.application.use_cases.project_member_use_cases import (
     SearchUsersToAdd,
 )
 
+# --- users và auth ---
+from app.adapters.outbound.persistence.postgres_user_auth_repository import (  # noqa: E402
+    PostgresUserAuthRepository,
+)
+from app.adapters.outbound.persistence.postgres_user_repository import (  # noqa: E402
+    PostgresUserRepository,
+)
+from app.adapters.outbound.security.jwt_token_service import JwtTokenService  # noqa: E402
+from app.adapters.outbound.security.pwdlib_password_verifier import (  # noqa: E402
+    PwdlibPasswordVerifier,
+)
+from app.application.ports.security import PasswordVerifier, TokenService  # noqa: E402
+from app.application.ports.user_auth_repository import UserAuthRepository  # noqa: E402
+from app.application.ports.user_repository import UserRepository  # noqa: E402
+from app.application.use_cases.auth_use_cases import AuthenticateToken, Login  # noqa: E402
+from app.application.use_cases.user_use_cases import GetUser, SearchUsers  # noqa: E402
+
+
 from app.adapters.outbound.persistence.mongo_article_content_repository import (
     MongoArticleContentRepository,
 )
@@ -138,6 +156,44 @@ def get_add_member(repo: MemberRepo) -> AddMember:
 
 def get_remove_member(repo: MemberRepo) -> RemoveMember:
     return RemoveMember(repo)
+
+#users
+def get_user_repo(db: Annotated[Session, Depends(get_db)]) -> UserRepository:
+    return PostgresUserRepository(db)
+
+
+def get_user_auth_repo(db: Annotated[Session, Depends(get_db)]) -> UserAuthRepository:
+    return PostgresUserAuthRepository(db)
+
+
+def get_password_verifier() -> PasswordVerifier:
+    return PwdlibPasswordVerifier()
+
+
+def get_token_service() -> TokenService:
+    return JwtTokenService()
+
+
+UserRepo = Annotated[UserRepository, Depends(get_user_repo)]
+AuthRepo = Annotated[UserAuthRepository, Depends(get_user_auth_repo)]
+Verifier = Annotated[PasswordVerifier, Depends(get_password_verifier)]
+Tokens = Annotated[TokenService, Depends(get_token_service)]
+
+
+def get_search_users(users: UserRepo) -> SearchUsers:
+    return SearchUsers(users)
+
+
+def get_get_user(users: UserRepo) -> GetUser:
+    return GetUser(users)
+
+
+def get_login(users: AuthRepo, hasher: Verifier, tokens: Tokens) -> Login:
+    return Login(users, hasher, tokens)
+
+
+def get_authenticate_token(users: AuthRepo, tokens: Tokens) -> AuthenticateToken:
+    return AuthenticateToken(users, tokens)
     
 # ACTICLE
 

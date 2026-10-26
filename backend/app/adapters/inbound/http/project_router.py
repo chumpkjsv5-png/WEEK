@@ -12,7 +12,7 @@ from app.application.use_cases.project_use_cases import (
     ListProjects,
     UpdateProject,
 )
-from app.core.dependencies import get_current_user, require_role
+from app.adapters.inbound.http.dependencies import get_current_user, require_role
 from app.core.permissions import ADMIN, CAN_MANAGE, MANAGER
 from app.domain.project import ProjectActor, ProjectFilter
 from app.models.user_data import User

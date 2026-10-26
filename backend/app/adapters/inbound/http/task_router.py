@@ -14,7 +14,7 @@ from app.application.use_cases.task_use_cases import (
     ListTasks,
     UpdateTask,
 )
-from app.core.dependencies import get_current_user, require_role
+from app.adapters.inbound.http.dependencies import get_current_user, require_role
 from app.core.permissions import CAN_MANAGE, MEMBER
 from app.domain.task import Actor, NewTask, TaskFilter
 from app.models.user_data import User
