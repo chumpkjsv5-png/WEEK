@@ -23,14 +23,23 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str) -> str:
+def create_access_token(
+    user_id: str,
+    session_id: str | None = None,
+) -> str:
     now = datetime.now(timezone.utc)
+
     payload = {
         "sub": user_id,
         "iat": now,
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
+
+    if session_id is not None:
+        payload["sid"] = session_id
+
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
 
 
 def decode_access_token(token: str) -> dict:
