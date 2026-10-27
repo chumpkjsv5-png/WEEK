@@ -70,7 +70,7 @@ axiosClient.interceptors.response.use(
 
     const isLogin = error.config?.url?.includes("/auth/login");
 
-    if (status === 401 && !isLogin) {
+    if (status === 401 && !isLogin && apiError.code === "UNAUTHORIZED") {
       if (apiError.code === "TOKEN_EXPIRED") {
         // Token hết hạn: xóa token và yêu cầu đăng nhập lại.
         // Nếu sau này có refresh token, xử lý refresh tại đây.

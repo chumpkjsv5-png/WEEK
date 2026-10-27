@@ -14,6 +14,8 @@ from app.models.project_data import Project
 from app.models.project_member import ProjectMember
 from app.models.task_data import Task
 from app.models.user_data import User
+from app.models.article_data import Article, Tag, article_tags
+from app.models.refresh_token import RefreshToken
 
 
 config = context.config
